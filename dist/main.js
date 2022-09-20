@@ -57,6 +57,10 @@ const THREE = __importStar(__webpack_require__(2));
 const dat_gui_1 = __webpack_require__(3);
 const OrbitControls_1 = __webpack_require__(4);
 const submergedObject_1 = __webpack_require__(5);
+const createGround_1 = __webpack_require__(6);
+const pointLights_1 = __webpack_require__(7);
+const ambientLights_1 = __webpack_require__(8);
+const directionalLights_1 = __webpack_require__(9);
 // import { createGroundFromHeightmap } from './createGround'
 /**
  * A class to set up some basic scene elements to minimize code in the
@@ -78,11 +82,11 @@ class BasicScene extends THREE.Scene {
         // Number of PointLight objects around origin
         this.lightCount = 6;
         // Distance above ground place
-        this.lightDistance = 3;
+        this.lightDistance = 30;
         // Get some basic params
         this.width = window.innerWidth;
         this.height = window.innerHeight;
-        this.groundGeo = null;
+        this.groundMesh = null;
     }
     /**
      * Initializes the scene by adding lights, and the geometry
@@ -93,6 +97,7 @@ class BasicScene extends THREE.Scene {
         this.camera.position.z = 120;
         this.camera.position.y = 120;
         this.camera.position.x = 120;
+        this.background = new THREE.Color(0x87ceeb);
         // setup renderer
         this.renderer = new THREE.WebGLRenderer({
             canvas: document.getElementById('app'),
@@ -111,46 +116,16 @@ class BasicScene extends THREE.Scene {
             this.add(new THREE.AxesHelper(3));
         }
         // set the background color
-        this.background = new THREE.Color(0xefefef);
+        // this.background = new THREE.Color(0xefefef)
         // create the lights
-        for (let i = 0; i < this.lightCount; i++) {
-            // Positions evenly in a circle pointed at the origin
-            const light = new THREE.PointLight(0xffffff, 1);
-            let lightX = this.lightDistance * Math.sin(((Math.PI * 2) / this.lightCount) * i);
-            let lightZ = this.lightDistance * Math.cos(((Math.PI * 2) / this.lightCount) * i);
-            // Create a light
-            light.position.set(lightX, this.lightDistance, lightZ);
-            light.lookAt(0, 0, 0);
-            this.add(light);
-            this.lights.push(light);
-            // Visual helpers to indicate light positions
-            this.add(new THREE.PointLightHelper(light, 0.5, 0xff9900));
-        }
-        const ambientLight = new THREE.AmbientLight(0x404040); // soft white light
-        this.add(ambientLight);
+        this.lights = (0, pointLights_1.createPointLights)(this, this.lightCount, this.lightDistance, this.lights);
+        const ambientLight = (0, ambientLights_1.createAmbientLights)(this);
+        const directionalLight = (0, directionalLights_1.createDirectionalLights)(this);
         // add to scene
         const submergedObject = (0, submergedObject_1.getSubmergedObject)();
         this.add(submergedObject);
-        this.groundGeo = new THREE.PlaneGeometry(100, 100, 64, 64);
-        const sliderHorizontalRepeat = 1;
-        const sliderVerticalRepeat = 1;
-        let disMap = new THREE.TextureLoader()
-            .setPath('../heightmaps/')
-            .load('testHeightMap.png');
-        disMap.wrapS = disMap.wrapT = THREE.RepeatWrapping;
-        disMap.repeat.set(sliderHorizontalRepeat, sliderVerticalRepeat);
-        const groundMat = new THREE.MeshStandardMaterial({
-            color: 0xff0000,
-            wireframe: false,
-            displacementMap: disMap,
-            emissive: 0xff00ff,
-            emissiveMap: disMap,
-            displacementScale: 50,
-        });
-        const groundMesh = new THREE.Mesh(this.groundGeo, groundMat);
-        groundMesh.rotation.x = -Math.PI / 2;
-        groundMesh.position.y = -0.5;
-        this.add(groundMesh);
+        this.groundMesh = (0, createGround_1.createGroundFromHeightmap)();
+        this.add(this.groundMesh);
         // setup Debugger
         if (debug) {
             this.debugger = new dat_gui_1.GUI();
@@ -160,6 +135,7 @@ class BasicScene extends THREE.Scene {
                 lightGroup.add(this.lights[i], 'visible', true);
             }
             lightGroup.add(ambientLight, 'visible', true).name('visible - ambient');
+            lightGroup.add(directionalLight, 'visible', true).name('visible - dir');
             lightGroup.open();
             // Add the submergedObject with some properties
             const submergedObjectGroup = this.debugger.addFolder('submergedObject');
@@ -54107,6 +54083,196 @@ const getSubmergedObject = () => {
     return submergedObject;
 };
 exports.getSubmergedObject = getSubmergedObject;
+
+
+/***/ }),
+/* 6 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.createGroundFromHeightmap = void 0;
+const THREE = __importStar(__webpack_require__(2));
+const createGroundFromHeightmap = () => {
+    const groundGeo = new THREE.PlaneGeometry(100, 100, 64, 64);
+    const horizontalRepeat = 1;
+    const verticalRepeat = 1;
+    let disMap = new THREE.TextureLoader()
+        .setPath('../heightmaps/')
+        .load('testHeightMap.png');
+    disMap.wrapS = disMap.wrapT = THREE.RepeatWrapping;
+    disMap.repeat.set(horizontalRepeat, verticalRepeat);
+    const groundMat = new THREE.MeshStandardMaterial({
+        color: 0xff0000,
+        wireframe: false,
+        displacementMap: disMap,
+        emissive: 0xff00ff,
+        emissiveMap: disMap,
+        displacementScale: 50,
+    });
+    const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+    groundMesh.rotation.x = -Math.PI / 2;
+    groundMesh.position.y = -0.5;
+    groundMesh.castShadow = true;
+    groundMesh.receiveShadow = true;
+    return groundMesh;
+};
+exports.createGroundFromHeightmap = createGroundFromHeightmap;
+
+
+/***/ }),
+/* 7 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.createPointLights = void 0;
+const THREE = __importStar(__webpack_require__(2));
+const createPointLights = (scene, lightCount, lightDistance, lights) => {
+    for (let i = 0; i < lightCount; i++) {
+        // Positions evenly in a circle pointed at the origin
+        const light = new THREE.PointLight(0xffffff, 1);
+        let lightX = lightDistance * Math.sin(((Math.PI * 2) / lightCount) * i);
+        let lightZ = lightDistance * Math.cos(((Math.PI * 2) / lightCount) * i);
+        // Create a light
+        light.position.set(lightX, lightDistance, lightZ);
+        light.lookAt(0, 0, 0);
+        scene.add(light);
+        lights.push(light);
+        // Visual helpers to indicate light positions
+        scene.add(new THREE.PointLightHelper(light, 0.5, 0xff9900));
+    }
+    return lights;
+};
+exports.createPointLights = createPointLights;
+
+
+/***/ }),
+/* 8 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.createAmbientLights = void 0;
+const THREE = __importStar(__webpack_require__(2));
+const createAmbientLights = (scene) => {
+    const ambientLight = new THREE.AmbientLight(0x404040); // soft white light
+    scene.add(ambientLight);
+    return ambientLight;
+};
+exports.createAmbientLights = createAmbientLights;
+
+
+/***/ }),
+/* 9 */
+/***/ (function(__unused_webpack_module, exports, __webpack_require__) {
+
+
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.createDirectionalLights = void 0;
+const THREE = __importStar(__webpack_require__(2));
+const createDirectionalLights = (scene) => {
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+    directionalLight.castShadow = true;
+    directionalLight.position.set(65, 30, 65);
+    const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 5, 0xff000f);
+    scene.add(directionalLight);
+    scene.add(directionalLightHelper);
+    return directionalLight;
+};
+exports.createDirectionalLights = createDirectionalLights;
 
 
 /***/ })

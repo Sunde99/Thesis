@@ -23,31 +23,23 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createGroundFromHeightmap = void 0;
+exports.createPointLights = void 0;
 const THREE = __importStar(require("three"));
-const createGroundFromHeightmap = () => {
-    const groundGeo = new THREE.PlaneGeometry(100, 100, 64, 64);
-    const horizontalRepeat = 1;
-    const verticalRepeat = 1;
-    let disMap = new THREE.TextureLoader()
-        .setPath('../heightmaps/')
-        .load('testHeightMap.png');
-    disMap.wrapS = disMap.wrapT = THREE.RepeatWrapping;
-    disMap.repeat.set(horizontalRepeat, verticalRepeat);
-    const groundMat = new THREE.MeshStandardMaterial({
-        color: 0xff0000,
-        wireframe: false,
-        displacementMap: disMap,
-        emissive: 0xff00ff,
-        emissiveMap: disMap,
-        displacementScale: 50,
-    });
-    const groundMesh = new THREE.Mesh(groundGeo, groundMat);
-    groundMesh.rotation.x = -Math.PI / 2;
-    groundMesh.position.y = -0.5;
-    groundMesh.castShadow = true;
-    groundMesh.receiveShadow = true;
-    return groundMesh;
+const createPointLights = (scene, lightCount, lightDistance, lights) => {
+    for (let i = 0; i < lightCount; i++) {
+        // Positions evenly in a circle pointed at the origin
+        const light = new THREE.PointLight(0xffffff, 1);
+        let lightX = lightDistance * Math.sin(((Math.PI * 2) / lightCount) * i);
+        let lightZ = lightDistance * Math.cos(((Math.PI * 2) / lightCount) * i);
+        // Create a light
+        light.position.set(lightX, lightDistance, lightZ);
+        light.lookAt(0, 0, 0);
+        scene.add(light);
+        lights.push(light);
+        // Visual helpers to indicate light positions
+        scene.add(new THREE.PointLightHelper(light, 0.5, 0xff9900));
+    }
+    return lights;
 };
-exports.createGroundFromHeightmap = createGroundFromHeightmap;
-//# sourceMappingURL=createGround.js.map
+exports.createPointLights = createPointLights;
+//# sourceMappingURL=pointLights.js.map

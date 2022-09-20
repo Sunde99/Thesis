@@ -23,31 +23,16 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createGroundFromHeightmap = void 0;
+exports.createDirectionalLights = void 0;
 const THREE = __importStar(require("three"));
-const createGroundFromHeightmap = () => {
-    const groundGeo = new THREE.PlaneGeometry(100, 100, 64, 64);
-    const horizontalRepeat = 1;
-    const verticalRepeat = 1;
-    let disMap = new THREE.TextureLoader()
-        .setPath('../heightmaps/')
-        .load('testHeightMap.png');
-    disMap.wrapS = disMap.wrapT = THREE.RepeatWrapping;
-    disMap.repeat.set(horizontalRepeat, verticalRepeat);
-    const groundMat = new THREE.MeshStandardMaterial({
-        color: 0xff0000,
-        wireframe: false,
-        displacementMap: disMap,
-        emissive: 0xff00ff,
-        emissiveMap: disMap,
-        displacementScale: 50,
-    });
-    const groundMesh = new THREE.Mesh(groundGeo, groundMat);
-    groundMesh.rotation.x = -Math.PI / 2;
-    groundMesh.position.y = -0.5;
-    groundMesh.castShadow = true;
-    groundMesh.receiveShadow = true;
-    return groundMesh;
+const createDirectionalLights = (scene) => {
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    directionalLight.castShadow = true;
+    directionalLight.position.set(30, 30, 45);
+    const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 15, 0xff000f);
+    scene.add(directionalLight);
+    scene.add(directionalLightHelper);
+    return directionalLight;
 };
-exports.createGroundFromHeightmap = createGroundFromHeightmap;
-//# sourceMappingURL=createGround.js.map
+exports.createDirectionalLights = createDirectionalLights;
+//# sourceMappingURL=directionalLights.js.map
