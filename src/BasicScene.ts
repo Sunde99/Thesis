@@ -2,6 +2,11 @@ import * as THREE from 'three'
 import { GUI } from 'dat.gui'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { getSubmergedObject } from './submergedObject'
+import { PlaneGeometry, MeshStandardMaterial } from 'three'
+import { createGroundFromHeightmap } from './createGround'
+import { createPointLights } from './lights/pointLights'
+import { createAmbientLights } from './lights/ambientLights'
+import { createDirectionalLights } from './lights/directionalLights'
 // import { createGroundFromHeightmap } from './createGround'
 /**
  * A class to set up some basic scene elements to minimize code in the
@@ -22,13 +27,13 @@ export default class BasicScene extends THREE.Scene {
   // Number of PointLight objects around origin
   lightCount: number = 6
   // Distance above ground place
-  lightDistance: number = 3
+  lightDistance: number = 30
 
   // Get some basic params
   width = window.innerWidth
   height = window.innerHeight
 
-  groundGeo: THREE.PlaneGeometry = null
+  groundMesh: THREE.Mesh<PlaneGeometry, MeshStandardMaterial> = null
 
   /**
    * Initializes the scene by adding lights, and the geometry
@@ -44,6 +49,8 @@ export default class BasicScene extends THREE.Scene {
     this.camera.position.z = 120
     this.camera.position.y = 120
     this.camera.position.x = 120
+
+    this.background = new THREE.Color(0x87ceeb)
 
     // setup renderer
     this.renderer = new THREE.WebGLRenderer({
@@ -66,57 +73,26 @@ export default class BasicScene extends THREE.Scene {
       this.add(new THREE.AxesHelper(3))
     }
     // set the background color
-    this.background = new THREE.Color(0xefefef)
+    // this.background = new THREE.Color(0xefefef)
 
     // create the lights
-    for (let i = 0; i < this.lightCount; i++) {
-      // Positions evenly in a circle pointed at the origin
-      const light = new THREE.PointLight(0xffffff, 1)
-      let lightX =
-        this.lightDistance * Math.sin(((Math.PI * 2) / this.lightCount) * i)
-      let lightZ =
-        this.lightDistance * Math.cos(((Math.PI * 2) / this.lightCount) * i)
-      // Create a light
-      light.position.set(lightX, this.lightDistance, lightZ)
-      light.lookAt(0, 0, 0)
-      this.add(light)
-      this.lights.push(light)
-      // Visual helpers to indicate light positions
-      this.add(new THREE.PointLightHelper(light, 0.5, 0xff9900))
-    }
+    this.lights = createPointLights(
+      this,
+      this.lightCount,
+      this.lightDistance,
+      this.lights,
+    )
 
-    const ambientLight = new THREE.AmbientLight(0x404040) // soft white light
-    this.add(ambientLight)
+    const ambientLight = createAmbientLights(this)
+
+    const directionalLight = createDirectionalLights(this)
 
     // add to scene
     const submergedObject = getSubmergedObject()
     this.add(submergedObject)
 
-    this.groundGeo = new THREE.PlaneGeometry(100, 100, 64, 64)
-
-    const sliderHorizontalRepeat = 1
-    const sliderVerticalRepeat = 1
-
-    let disMap = new THREE.TextureLoader()
-      .setPath('../heightmaps/')
-      .load('testHeightMap.png')
-
-    disMap.wrapS = disMap.wrapT = THREE.RepeatWrapping
-    disMap.repeat.set(sliderHorizontalRepeat, sliderVerticalRepeat)
-
-    const groundMat = new THREE.MeshStandardMaterial({
-      color: 0xff0000,
-      wireframe: false,
-      displacementMap: disMap,
-      emissive: 0xff00ff,
-      emissiveMap: disMap,
-      displacementScale: 50,
-    })
-
-    const groundMesh = new THREE.Mesh(this.groundGeo, groundMat)
-    groundMesh.rotation.x = -Math.PI / 2
-    groundMesh.position.y = -0.5
-    this.add(groundMesh)
+    this.groundMesh = createGroundFromHeightmap()
+    this.add(this.groundMesh)
     // setup Debugger
     if (debug) {
       this.debugger = new GUI()
@@ -126,6 +102,7 @@ export default class BasicScene extends THREE.Scene {
         lightGroup.add(this.lights[i], 'visible', true)
       }
       lightGroup.add(ambientLight, 'visible', true).name('visible - ambient')
+      lightGroup.add(directionalLight, 'visible', true).name('visible - dir')
       lightGroup.open()
       // Add the submergedObject with some properties
       const submergedObjectGroup = this.debugger.addFolder('submergedObject')
