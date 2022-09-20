@@ -3,9 +3,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const BasicScene_1 = __importDefault(require("./BasicScene"));
+const basicScene_1 = __importDefault(require("./basicScene"));
 // sets up the scene
-let scene = new BasicScene_1.default();
+let scene = new basicScene_1.default();
 scene.initialize();
 // loops updates
 function loop() {

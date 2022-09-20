@@ -1,6 +1,13 @@
 import * as THREE from 'three'
 import { GUI } from 'dat.gui'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
+import { getSubmergedObject } from './submergedObject'
+import { PlaneGeometry, MeshStandardMaterial } from 'three'
+import { createGroundFromHeightmap } from './createGround'
+import { createPointLights } from './lights/pointLights'
+import { createAmbientLights } from './lights/ambientLights'
+import { createDirectionalLights } from './lights/directionalLights'
+// import { createGroundFromHeightmap } from './createGround'
 /**
  * A class to set up some basic scene elements to minimize code in the
  * main execution file.
@@ -20,11 +27,13 @@ export default class BasicScene extends THREE.Scene {
   // Number of PointLight objects around origin
   lightCount: number = 6
   // Distance above ground place
-  lightDistance: number = 3
+  lightDistance: number = 30
 
   // Get some basic params
   width = window.innerWidth
   height = window.innerHeight
+
+  groundMesh: THREE.Mesh<PlaneGeometry, MeshStandardMaterial> = null
 
   /**
    * Initializes the scene by adding lights, and the geometry
@@ -37,9 +46,11 @@ export default class BasicScene extends THREE.Scene {
       0.1,
       1000,
     )
-    this.camera.position.z = 12
-    this.camera.position.y = 12
-    this.camera.position.x = 12
+    this.camera.position.z = 120
+    this.camera.position.y = 120
+    this.camera.position.x = 120
+
+    this.background = new THREE.Color(0x87ceeb)
 
     // setup renderer
     this.renderer = new THREE.WebGLRenderer({
@@ -62,33 +73,26 @@ export default class BasicScene extends THREE.Scene {
       this.add(new THREE.AxesHelper(3))
     }
     // set the background color
-    this.background = new THREE.Color(0xefefef)
+    // this.background = new THREE.Color(0xefefef)
 
     // create the lights
-    for (let i = 0; i < this.lightCount; i++) {
-      // Positions evenly in a circle pointed at the origin
-      const light = new THREE.PointLight(0xffffff, 1)
-      let lightX =
-        this.lightDistance * Math.sin(((Math.PI * 2) / this.lightCount) * i)
-      let lightZ =
-        this.lightDistance * Math.cos(((Math.PI * 2) / this.lightCount) * i)
-      // Create a light
-      light.position.set(lightX, this.lightDistance, lightZ)
-      light.lookAt(0, 0, 0)
-      this.add(light)
-      this.lights.push(light)
-      // Visual helpers to indicate light positions
-      this.add(new THREE.PointLightHelper(light, 0.5, 0xff9900))
-    }
+    this.lights = createPointLights(
+      this,
+      this.lightCount,
+      this.lightDistance,
+      this.lights,
+    )
 
-    // Creates the geometry + materials
-    const geometry = new THREE.BoxGeometry(1, 1, 1)
-    const material = new THREE.MeshPhongMaterial({ color: 0xff9900 })
-    let cube = new THREE.Mesh(geometry, material)
-    cube.position.y = 0.5
+    const ambientLight = createAmbientLights(this)
+
+    const directionalLight = createDirectionalLights(this)
+
     // add to scene
-    this.add(cube)
+    const submergedObject = getSubmergedObject()
+    this.add(submergedObject)
 
+    this.groundMesh = createGroundFromHeightmap()
+    this.add(this.groundMesh)
     // setup Debugger
     if (debug) {
       this.debugger = new GUI()
@@ -97,13 +101,18 @@ export default class BasicScene extends THREE.Scene {
       for (let i = 0; i < this.lights.length; i++) {
         lightGroup.add(this.lights[i], 'visible', true)
       }
+      lightGroup.add(ambientLight, 'visible', true).name('visible - ambient')
+      lightGroup.add(directionalLight, 'visible', true).name('visible - dir')
       lightGroup.open()
-      // Add the cube with some properties
-      const cubeGroup = this.debugger.addFolder('Cube')
-      cubeGroup.add(cube.position, 'x', -10, 10)
-      cubeGroup.add(cube.position, 'y', 0.5, 10)
-      cubeGroup.add(cube.position, 'z', -10, 10)
-      cubeGroup.open()
+      // Add the submergedObject with some properties
+      const submergedObjectGroup = this.debugger.addFolder('submergedObject')
+      submergedObjectGroup.add(submergedObject.position, 'x', -10, 10)
+      submergedObjectGroup.add(submergedObject.position, 'y', 0.5, 10)
+      submergedObjectGroup.add(submergedObject.position, 'z', -10, 10)
+      submergedObjectGroup
+        .add(submergedObject.rotation, 'y', 0, Math.PI * 2)
+        .name('rot')
+      submergedObjectGroup.open()
       // Add camera to debugger
       const cameraGroup = this.debugger.addFolder('Camera')
       cameraGroup.add(this.camera, 'fov', 20, 80)
