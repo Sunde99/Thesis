@@ -1,6 +1,8 @@
 import * as THREE from 'three'
 import { GUI } from 'dat.gui'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
+import { getSubmergedObject } from './submergedObject'
+// import { createGroundFromHeightmap } from './createGround'
 /**
  * A class to set up some basic scene elements to minimize code in the
  * main execution file.
@@ -26,6 +28,8 @@ export default class BasicScene extends THREE.Scene {
   width = window.innerWidth
   height = window.innerHeight
 
+  groundGeo: THREE.PlaneGeometry = null
+
   /**
    * Initializes the scene by adding lights, and the geometry
    */
@@ -37,9 +41,9 @@ export default class BasicScene extends THREE.Scene {
       0.1,
       1000,
     )
-    this.camera.position.z = 12
-    this.camera.position.y = 12
-    this.camera.position.x = 12
+    this.camera.position.z = 120
+    this.camera.position.y = 120
+    this.camera.position.x = 120
 
     // setup renderer
     this.renderer = new THREE.WebGLRenderer({
@@ -81,14 +85,38 @@ export default class BasicScene extends THREE.Scene {
       this.add(new THREE.PointLightHelper(light, 0.5, 0xff9900))
     }
 
-    // Creates the geometry + materials
-    const geometry = new THREE.BoxGeometry(1, 1, 1)
-    const material = new THREE.MeshPhongMaterial({ color: 0xff9900 })
-    let cube = new THREE.Mesh(geometry, material)
-    cube.position.y = 0.5
-    // add to scene
-    this.add(cube)
+    const ambientLight = new THREE.AmbientLight(0x404040) // soft white light
+    this.add(ambientLight)
 
+    // add to scene
+    const submergedObject = getSubmergedObject()
+    this.add(submergedObject)
+
+    this.groundGeo = new THREE.PlaneGeometry(100, 100, 64, 64)
+
+    const sliderHorizontalRepeat = 1
+    const sliderVerticalRepeat = 1
+
+    let disMap = new THREE.TextureLoader()
+      .setPath('../heightmaps/')
+      .load('testHeightMap.png')
+
+    disMap.wrapS = disMap.wrapT = THREE.RepeatWrapping
+    disMap.repeat.set(sliderHorizontalRepeat, sliderVerticalRepeat)
+
+    const groundMat = new THREE.MeshStandardMaterial({
+      color: 0xff0000,
+      wireframe: false,
+      displacementMap: disMap,
+      emissive: 0xff00ff,
+      emissiveMap: disMap,
+      displacementScale: 50,
+    })
+
+    const groundMesh = new THREE.Mesh(this.groundGeo, groundMat)
+    groundMesh.rotation.x = -Math.PI / 2
+    groundMesh.position.y = -0.5
+    this.add(groundMesh)
     // setup Debugger
     if (debug) {
       this.debugger = new GUI()
@@ -97,13 +125,17 @@ export default class BasicScene extends THREE.Scene {
       for (let i = 0; i < this.lights.length; i++) {
         lightGroup.add(this.lights[i], 'visible', true)
       }
+      lightGroup.add(ambientLight, 'visible', true).name('visible - ambient')
       lightGroup.open()
-      // Add the cube with some properties
-      const cubeGroup = this.debugger.addFolder('Cube')
-      cubeGroup.add(cube.position, 'x', -10, 10)
-      cubeGroup.add(cube.position, 'y', 0.5, 10)
-      cubeGroup.add(cube.position, 'z', -10, 10)
-      cubeGroup.open()
+      // Add the submergedObject with some properties
+      const submergedObjectGroup = this.debugger.addFolder('submergedObject')
+      submergedObjectGroup.add(submergedObject.position, 'x', -10, 10)
+      submergedObjectGroup.add(submergedObject.position, 'y', 0.5, 10)
+      submergedObjectGroup.add(submergedObject.position, 'z', -10, 10)
+      submergedObjectGroup
+        .add(submergedObject.rotation, 'y', 0, Math.PI * 2)
+        .name('rot')
+      submergedObjectGroup.open()
       // Add camera to debugger
       const cameraGroup = this.debugger.addFolder('Camera')
       cameraGroup.add(this.camera, 'fov', 20, 80)
