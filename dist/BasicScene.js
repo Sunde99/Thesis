@@ -26,6 +26,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const THREE = __importStar(require("three"));
 const dat_gui_1 = require("dat.gui");
 const OrbitControls_1 = require("three/examples/jsm/controls/OrbitControls");
+const submergedObject_1 = require("./submergedObject");
+// import { createGroundFromHeightmap } from './createGround'
 /**
  * A class to set up some basic scene elements to minimize code in the
  * main execution file.
@@ -56,14 +58,14 @@ class BasicScene extends THREE.Scene {
      */
     initialize(debug = true, addGridHelper = true) {
         // setup camera
-        this.camera = new THREE.PerspectiveCamera(35, this.width / this.height, .1, 1000);
+        this.camera = new THREE.PerspectiveCamera(35, this.width / this.height, 0.1, 1000);
         this.camera.position.z = 12;
         this.camera.position.y = 12;
         this.camera.position.x = 12;
         // setup renderer
         this.renderer = new THREE.WebGLRenderer({
-            canvas: document.getElementById("app"),
-            alpha: true
+            canvas: document.getElementById('app'),
+            alpha: true,
         });
         this.renderer.setSize(this.width, this.height);
         // add window resizing
@@ -83,43 +85,69 @@ class BasicScene extends THREE.Scene {
         for (let i = 0; i < this.lightCount; i++) {
             // Positions evenly in a circle pointed at the origin
             const light = new THREE.PointLight(0xffffff, 1);
-            let lightX = this.lightDistance * Math.sin(Math.PI * 2 / this.lightCount * i);
-            let lightZ = this.lightDistance * Math.cos(Math.PI * 2 / this.lightCount * i);
+            let lightX = this.lightDistance * Math.sin(((Math.PI * 2) / this.lightCount) * i);
+            let lightZ = this.lightDistance * Math.cos(((Math.PI * 2) / this.lightCount) * i);
             // Create a light
             light.position.set(lightX, this.lightDistance, lightZ);
             light.lookAt(0, 0, 0);
             this.add(light);
             this.lights.push(light);
             // Visual helpers to indicate light positions
-            this.add(new THREE.PointLightHelper(light, .5, 0xff9900));
+            this.add(new THREE.PointLightHelper(light, 0.5, 0xff9900));
         }
-        // Creates the geometry + materials
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
-        const material = new THREE.MeshPhongMaterial({ color: 0xff9900 });
-        let cube = new THREE.Mesh(geometry, material);
-        cube.position.y = .5;
+        const ambientLight = new THREE.AmbientLight(0x404040); // soft white light
+        this.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        this.add(directionalLight);
         // add to scene
-        this.add(cube);
+        const submergedObject = (0, submergedObject_1.getSubmergedObject)();
+        this.add(submergedObject);
+        directionalLight.target = submergedObject;
+        const groundGeo = new THREE.PlaneGeometry(1000, 1000, 512, 512);
+        const sliderHorizontalRepeat = 5;
+        const sliderVerticalRepeat = 5;
+        let disMap = new THREE.TextureLoader()
+            .setPath('../heightmaps/')
+            .load('testHeightMap.png');
+        disMap.wrapS = disMap.wrapT = THREE.RepeatWrapping;
+        disMap.repeat.set(sliderHorizontalRepeat, sliderVerticalRepeat);
+        const groundMat = new THREE.MeshStandardMaterial({
+            color: 0xff0000,
+            wireframe: false,
+            displacementMap: disMap,
+            displacementScale: 2,
+        });
+        const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+        groundMesh.rotation.x = -Math.PI / 2;
+        groundMesh.position.y = -0.5;
+        this.add(groundMesh);
         // setup Debugger
         if (debug) {
             this.debugger = new dat_gui_1.GUI();
             // Debug group with all lights in it.
-            const lightGroup = this.debugger.addFolder("Lights");
+            const lightGroup = this.debugger.addFolder('Lights');
             for (let i = 0; i < this.lights.length; i++) {
                 lightGroup.add(this.lights[i], 'visible', true);
             }
             lightGroup.open();
-            // Add the cube with some properties
-            const cubeGroup = this.debugger.addFolder("Cube");
-            cubeGroup.add(cube.position, 'x', -10, 10);
-            cubeGroup.add(cube.position, 'y', .5, 10);
-            cubeGroup.add(cube.position, 'z', -10, 10);
-            cubeGroup.open();
+            // Add the submergedObject with some properties
+            const submergedObjectGroup = this.debugger.addFolder('submergedObject');
+            submergedObjectGroup.add(submergedObject.position, 'x', -10, 10);
+            submergedObjectGroup.add(submergedObject.position, 'y', 0.5, 10);
+            submergedObjectGroup.add(submergedObject.position, 'z', -10, 10);
+            submergedObjectGroup
+                .add(submergedObject.rotation, 'y', 0, Math.PI * 2)
+                .name('rot');
+            submergedObjectGroup.open();
             // Add camera to debugger
             const cameraGroup = this.debugger.addFolder('Camera');
             cameraGroup.add(this.camera, 'fov', 20, 80);
             cameraGroup.add(this.camera, 'zoom', 0, 1);
             cameraGroup.open();
+            // const directionalLightGroup = this.debugger.addFolder('DirLight')
+            // directionalLightGroup.add(directionalLight.target, 'x', -10, 10)
+            // directionalLightGroup.add(directionalLight.target, 'x', -10, 10)
+            // directionalLightGroup.add(directionalLight.target, 'x', -10, 10)
         }
     }
     /**
@@ -139,4 +167,4 @@ class BasicScene extends THREE.Scene {
     }
 }
 exports.default = BasicScene;
-//# sourceMappingURL=BasicScene.js.map
+//# sourceMappingURL=basicScene.js.map
