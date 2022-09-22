@@ -26,10 +26,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createDirectionalLights = void 0;
 const THREE = __importStar(require("three"));
 const createDirectionalLights = (scene) => {
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
     directionalLight.castShadow = true;
-    directionalLight.position.set(30, 30, 45);
-    const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 15, 0xff000f);
+    directionalLight.position.set(-65, 30, -65);
+    const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 5, 0xff000f);
+    // directionalLightHelper.matrixAutoUpdate = true
     scene.add(directionalLight);
     scene.add(directionalLightHelper);
     return directionalLight;

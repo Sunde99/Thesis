@@ -26,7 +26,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createGroundFromHeightmap = void 0;
 const THREE = __importStar(require("three"));
 const createGroundFromHeightmap = () => {
-    const groundGeo = new THREE.PlaneGeometry(100, 100, 64, 64);
+    const groundGeo = new THREE.PlaneGeometry(256, 256, 64, 64);
     const horizontalRepeat = 1;
     const verticalRepeat = 1;
     let disMap = new THREE.TextureLoader()
@@ -40,7 +40,7 @@ const createGroundFromHeightmap = () => {
         displacementMap: disMap,
         emissive: 0xff00ff,
         emissiveMap: disMap,
-        displacementScale: 50,
+        displacementScale: 15,
     });
     const groundMesh = new THREE.Mesh(groundGeo, groundMat);
     groundMesh.rotation.x = -Math.PI / 2;

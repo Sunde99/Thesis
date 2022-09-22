@@ -30,6 +30,7 @@ const submergedObject_1 = require("./submergedObject");
 const createGround_1 = require("./createGround");
 const pointLights_1 = require("./lights/pointLights");
 const ambientLights_1 = require("./lights/ambientLights");
+const directionalLights_1 = require("./lights/directionalLights");
 // import { createGroundFromHeightmap } from './createGround'
 /**
  * A class to set up some basic scene elements to minimize code in the
@@ -56,6 +57,7 @@ class BasicScene extends THREE.Scene {
         this.width = window.innerWidth;
         this.height = window.innerHeight;
         this.groundMesh = null;
+        this.amountOfObjects = 5;
     }
     /**
      * Initializes the scene by adding lights, and the geometry
@@ -89,9 +91,12 @@ class BasicScene extends THREE.Scene {
         // create the lights
         this.lights = (0, pointLights_1.createPointLights)(this, this.lightCount, this.lightDistance, this.lights);
         const ambientLight = (0, ambientLights_1.createAmbientLights)(this);
+        const directionalLight = (0, directionalLights_1.createDirectionalLights)(this);
         // add to scene
-        const submergedObject = (0, submergedObject_1.getSubmergedObject)();
-        this.add(submergedObject);
+        const submergedObjects = (0, submergedObject_1.placeSubmergedObjects)();
+        submergedObjects.forEach((submergedObject) => {
+            this.add(submergedObject);
+        });
         this.groundMesh = (0, createGround_1.createGroundFromHeightmap)();
         this.add(this.groundMesh);
         // setup Debugger
@@ -100,19 +105,21 @@ class BasicScene extends THREE.Scene {
             // Debug group with all lights in it.
             const lightGroup = this.debugger.addFolder('Lights');
             for (let i = 0; i < this.lights.length; i++) {
-                lightGroup.add(this.lights[i], 'visible', true);
+                lightGroup.add(this.lights[i], 'visible', false);
             }
             lightGroup.add(ambientLight, 'visible', true).name('visible - ambient');
+            lightGroup.add(directionalLight, 'visible', false).name('visible - dir');
             lightGroup.open();
-            // Add the submergedObject with some properties
-            const submergedObjectGroup = this.debugger.addFolder('submergedObject');
-            submergedObjectGroup.add(submergedObject.position, 'x', -10, 10);
-            submergedObjectGroup.add(submergedObject.position, 'y', 0.5, 10);
-            submergedObjectGroup.add(submergedObject.position, 'z', -10, 10);
-            submergedObjectGroup
-                .add(submergedObject.rotation, 'y', 0, Math.PI * 2)
-                .name('rot');
-            submergedObjectGroup.open();
+            // Add the submergedObjects with some properties
+            for (let i = 0; i < submergedObjects.length; i++) {
+                const submergedObjectGroup = this.debugger.addFolder('submergedObject ' + i);
+                submergedObjectGroup.add(submergedObjects[i].position, 'x', -50, 50);
+                submergedObjectGroup.add(submergedObjects[i].position, 'y', 0.5, 50);
+                submergedObjectGroup.add(submergedObjects[i].position, 'z', -50, 50);
+                submergedObjectGroup
+                    .add(submergedObjects[i].rotation, 'y', 0, Math.PI * 2)
+                    .name('rot');
+            }
             // Add camera to debugger
             const cameraGroup = this.debugger.addFolder('Camera');
             cameraGroup.add(this.camera, 'fov', 20, 80);

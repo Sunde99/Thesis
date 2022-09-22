@@ -87,6 +87,7 @@ class BasicScene extends THREE.Scene {
         this.width = window.innerWidth;
         this.height = window.innerHeight;
         this.groundMesh = null;
+        this.amountOfObjects = 5;
     }
     /**
      * Initializes the scene by adding lights, and the geometry
@@ -122,8 +123,10 @@ class BasicScene extends THREE.Scene {
         const ambientLight = (0, ambientLights_1.createAmbientLights)(this);
         const directionalLight = (0, directionalLights_1.createDirectionalLights)(this);
         // add to scene
-        const submergedObject = (0, submergedObject_1.getSubmergedObject)();
-        this.add(submergedObject);
+        const submergedObjects = (0, submergedObject_1.placeSubmergedObjects)();
+        submergedObjects.forEach((submergedObject) => {
+            this.add(submergedObject);
+        });
         this.groundMesh = (0, createGround_1.createGroundFromHeightmap)();
         this.add(this.groundMesh);
         // setup Debugger
@@ -132,20 +135,21 @@ class BasicScene extends THREE.Scene {
             // Debug group with all lights in it.
             const lightGroup = this.debugger.addFolder('Lights');
             for (let i = 0; i < this.lights.length; i++) {
-                lightGroup.add(this.lights[i], 'visible', true);
+                lightGroup.add(this.lights[i], 'visible', false);
             }
             lightGroup.add(ambientLight, 'visible', true).name('visible - ambient');
-            lightGroup.add(directionalLight, 'visible', true).name('visible - dir');
+            lightGroup.add(directionalLight, 'visible', false).name('visible - dir');
             lightGroup.open();
-            // Add the submergedObject with some properties
-            const submergedObjectGroup = this.debugger.addFolder('submergedObject');
-            submergedObjectGroup.add(submergedObject.position, 'x', -10, 10);
-            submergedObjectGroup.add(submergedObject.position, 'y', 0.5, 10);
-            submergedObjectGroup.add(submergedObject.position, 'z', -10, 10);
-            submergedObjectGroup
-                .add(submergedObject.rotation, 'y', 0, Math.PI * 2)
-                .name('rot');
-            submergedObjectGroup.open();
+            // Add the submergedObjects with some properties
+            for (let i = 0; i < submergedObjects.length; i++) {
+                const submergedObjectGroup = this.debugger.addFolder('submergedObject ' + i);
+                submergedObjectGroup.add(submergedObjects[i].position, 'x', -75, 75);
+                submergedObjectGroup.add(submergedObjects[i].position, 'y', 0.5, 50);
+                submergedObjectGroup.add(submergedObjects[i].position, 'z', -75, 75);
+                submergedObjectGroup
+                    .add(submergedObjects[i].rotation, 'y', 0, Math.PI * 2)
+                    .name('rot');
+            }
             // Add camera to debugger
             const cameraGroup = this.debugger.addFolder('Camera');
             cameraGroup.add(this.camera, 'fov', 20, 80);
@@ -54054,35 +54058,61 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.getSubmergedObject = void 0;
+exports.placeSubmergedObjects = void 0;
 const THREE = __importStar(__webpack_require__(2));
-const loadSubmergedObject = () => {
-    // TODO Set up object loader
-    // For now using a cube is ok
-    // Creates the geometry + materials
-    const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const material = new THREE.MeshPhongMaterial({ color: 0xff9900 });
-    let cube = new THREE.Mesh(geometry, material);
+const createSphere = () => {
+    const sphereGeometry = new THREE.SphereGeometry(10, 32, 16);
+    const sphereMaterial = new THREE.MeshPhongMaterial({ color: 0x090fff });
+    let sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+    return sphere;
+};
+const createBox = () => {
+    const boxGeometry = new THREE.BoxGeometry(10, 10, 10);
+    const boxMaterial = new THREE.MeshPhongMaterial({ color: 0xff9900 });
+    let cube = new THREE.Mesh(boxGeometry, boxMaterial);
     return cube;
 };
-const getSubmergedObject = () => {
-    const submergedObject = loadSubmergedObject();
-    submergedObject.position.y = 0.5;
-    // Sets up outer bounds
-    const maxXValue = 5;
-    const minXValue = -5;
-    const maxZValue = 5;
-    const minZValue = -5;
-    // Randomizes position and rotation
-    const submergedObjectRotation = Math.random() * Math.PI * 2;
-    submergedObject.position.x =
-        Math.random() * (maxXValue - minXValue) + minXValue;
-    submergedObject.position.z =
-        Math.random() * (maxZValue - minZValue) + minZValue;
-    submergedObject.rotation.setFromVector3(new THREE.Vector3(0, submergedObjectRotation, 0));
-    return submergedObject;
+const loadSubmergedObjects = () => {
+    // TODO Set up object loader
+    // For now using a basic shapes is ok
+    const submergedObjects = [];
+    const amountOfObjects = 5; // Take this as param
+    // Randomly creates the geometry + materials
+    for (let i = 0; i < amountOfObjects; i++) {
+        const randomNum = Math.floor(Math.random() * 2);
+        if (randomNum == 1) {
+            submergedObjects.push(createBox());
+        }
+        else {
+            submergedObjects.push(createSphere());
+        }
+    }
+    return submergedObjects;
 };
-exports.getSubmergedObject = getSubmergedObject;
+const placeSubmergedObjects = () => {
+    const submergedObjects = loadSubmergedObjects();
+    // Sets up outer bounds
+    const minXValue = -75;
+    const maxXValue = 75;
+    const minYValue = -1;
+    const maxYValue = 30;
+    const minZValue = -75;
+    const maxZValue = 75;
+    submergedObjects.forEach((submergedObject) => {
+        submergedObject.position.y = 0.5;
+        // Randomizes position and rotation
+        const submergedObjectRotation = Math.random() * Math.PI * 2;
+        submergedObject.position.x =
+            Math.random() * (maxXValue - minXValue) + minXValue;
+        submergedObject.position.y =
+            Math.random() * (maxYValue - minYValue) + minYValue;
+        submergedObject.position.z =
+            Math.random() * (maxZValue - minZValue) + minZValue;
+        submergedObject.rotation.setFromVector3(new THREE.Vector3(0, submergedObjectRotation, 0));
+    });
+    return submergedObjects;
+};
+exports.placeSubmergedObjects = placeSubmergedObjects;
 
 
 /***/ }),
@@ -54117,7 +54147,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.createGroundFromHeightmap = void 0;
 const THREE = __importStar(__webpack_require__(2));
 const createGroundFromHeightmap = () => {
-    const groundGeo = new THREE.PlaneGeometry(100, 100, 64, 64);
+    const groundGeo = new THREE.PlaneGeometry(256, 256, 64, 64);
     const horizontalRepeat = 1;
     const verticalRepeat = 1;
     let disMap = new THREE.TextureLoader()
@@ -54131,7 +54161,7 @@ const createGroundFromHeightmap = () => {
         displacementMap: disMap,
         emissive: 0xff00ff,
         emissiveMap: disMap,
-        displacementScale: 50,
+        displacementScale: 15,
     });
     const groundMesh = new THREE.Mesh(groundGeo, groundMat);
     groundMesh.rotation.x = -Math.PI / 2;
@@ -54183,6 +54213,7 @@ const createPointLights = (scene, lightCount, lightDistance, lights) => {
         // Create a light
         light.position.set(lightX, lightDistance, lightZ);
         light.lookAt(0, 0, 0);
+        light.visible = false;
         scene.add(light);
         lights.push(light);
         // Visual helpers to indicate light positions
@@ -54226,6 +54257,7 @@ exports.createAmbientLights = void 0;
 const THREE = __importStar(__webpack_require__(2));
 const createAmbientLights = (scene) => {
     const ambientLight = new THREE.AmbientLight(0x404040); // soft white light
+    ambientLight.intensity = 0.1;
     scene.add(ambientLight);
     return ambientLight;
 };
@@ -54266,8 +54298,9 @@ const THREE = __importStar(__webpack_require__(2));
 const createDirectionalLights = (scene) => {
     const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
     directionalLight.castShadow = true;
-    directionalLight.position.set(65, 30, 65);
+    directionalLight.position.set(-65, 30, -65);
     const directionalLightHelper = new THREE.DirectionalLightHelper(directionalLight, 5, 0xff000f);
+    // directionalLightHelper.matrixAutoUpdate = true
     scene.add(directionalLight);
     scene.add(directionalLightHelper);
     return directionalLight;
