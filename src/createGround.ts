@@ -5,7 +5,7 @@ export const createGroundFromHeightmap = (): THREE.Mesh<
   PlaneGeometry,
   MeshStandardMaterial
 > => {
-  const groundGeo = new THREE.PlaneGeometry(100, 100, 64, 64)
+  const groundGeo = new THREE.PlaneGeometry(256, 256, 64, 64)
 
   const horizontalRepeat = 1
   const verticalRepeat = 1
@@ -23,7 +23,7 @@ export const createGroundFromHeightmap = (): THREE.Mesh<
     displacementMap: disMap,
     emissive: 0xff00ff,
     emissiveMap: disMap,
-    displacementScale: 50,
+    displacementScale: 15,
   })
 
   const groundMesh = new THREE.Mesh(groundGeo, groundMat)
