@@ -1,8 +1,8 @@
 import * as THREE from 'three'
 import { GUI } from 'dat.gui'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
-import { getSubmergedObject } from './submergedObject'
-import { PlaneGeometry, MeshStandardMaterial } from 'three'
+import { placeSubmergedObjects } from './submergedObject'
+import { PlaneGeometry, MeshStandardMaterial, DirectionalLight } from 'three'
 import { createGroundFromHeightmap } from './createGround'
 import { createPointLights } from './lights/pointLights'
 import { createAmbientLights } from './lights/ambientLights'
@@ -18,7 +18,7 @@ export default class BasicScene extends THREE.Scene {
   // Setups a scene camera
   camera: THREE.PerspectiveCamera = null
   // setup renderer
-  renderer: THREE.Renderer = null
+  renderer: THREE.WebGLRenderer = null
   // setup Orbitals
   orbitals: OrbitControls = null
 
@@ -34,6 +34,8 @@ export default class BasicScene extends THREE.Scene {
   height = window.innerHeight
 
   groundMesh: THREE.Mesh<PlaneGeometry, MeshStandardMaterial> = null
+
+  amountOfObjects: number = 5
 
   /**
    * Initializes the scene by adding lights, and the geometry
@@ -88,31 +90,38 @@ export default class BasicScene extends THREE.Scene {
     const directionalLight = createDirectionalLights(this)
 
     // add to scene
-    const submergedObject = getSubmergedObject()
-    this.add(submergedObject)
+    const submergedObjects = placeSubmergedObjects()
+    submergedObjects.forEach((submergedObject) => {
+      this.add(submergedObject)
+    })
 
     this.groundMesh = createGroundFromHeightmap()
     this.add(this.groundMesh)
+
     // setup Debugger
     if (debug) {
       this.debugger = new GUI()
       // Debug group with all lights in it.
       const lightGroup = this.debugger.addFolder('Lights')
       for (let i = 0; i < this.lights.length; i++) {
-        lightGroup.add(this.lights[i], 'visible', true)
+        lightGroup.add(this.lights[i], 'visible', false)
       }
       lightGroup.add(ambientLight, 'visible', true).name('visible - ambient')
-      lightGroup.add(directionalLight, 'visible', true).name('visible - dir')
+      lightGroup.add(directionalLight, 'visible', false).name('visible - dir')
+
       lightGroup.open()
-      // Add the submergedObject with some properties
-      const submergedObjectGroup = this.debugger.addFolder('submergedObject')
-      submergedObjectGroup.add(submergedObject.position, 'x', -10, 10)
-      submergedObjectGroup.add(submergedObject.position, 'y', 0.5, 10)
-      submergedObjectGroup.add(submergedObject.position, 'z', -10, 10)
-      submergedObjectGroup
-        .add(submergedObject.rotation, 'y', 0, Math.PI * 2)
-        .name('rot')
-      submergedObjectGroup.open()
+      // Add the submergedObjects with some properties
+      for (let i = 0; i < submergedObjects.length; i++) {
+        const submergedObjectGroup = this.debugger.addFolder(
+          'submergedObject ' + i,
+        )
+        submergedObjectGroup.add(submergedObjects[i].position, 'x', -75, 75)
+        submergedObjectGroup.add(submergedObjects[i].position, 'y', 0.5, 50)
+        submergedObjectGroup.add(submergedObjects[i].position, 'z', -75, 75)
+        submergedObjectGroup
+          .add(submergedObjects[i].rotation, 'y', 0, Math.PI * 2)
+          .name('rot')
+      }
       // Add camera to debugger
       const cameraGroup = this.debugger.addFolder('Camera')
       cameraGroup.add(this.camera, 'fov', 20, 80)
