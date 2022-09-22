@@ -34,6 +34,7 @@ const createPointLights = (scene, lightCount, lightDistance, lights) => {
         // Create a light
         light.position.set(lightX, lightDistance, lightZ);
         light.lookAt(0, 0, 0);
+        light.visible = false;
         scene.add(light);
         lights.push(light);
         // Visual helpers to indicate light positions
