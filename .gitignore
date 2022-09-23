@@ -1,2 +1,5 @@
 /node_modules
 /dist
+/dist/BasicScene.js
+/dist/BasicScene.js.map
+/dist/main.js
