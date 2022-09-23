@@ -2,14 +2,14 @@ import * as THREE from 'three'
 import { Mesh, BufferGeometry, Material } from 'three'
 
 const createSphere = (): THREE.Mesh => {
-  const sphereGeometry = new THREE.SphereGeometry(10, 32, 16)
+  const sphereGeometry = new THREE.SphereGeometry(16, 32, 16)
   const sphereMaterial = new THREE.MeshPhongMaterial({ color: 0x090fff })
   let sphere = new THREE.Mesh(sphereGeometry, sphereMaterial)
   return sphere
 }
 
 const createBox = (): THREE.Mesh => {
-  const boxGeometry = new THREE.BoxGeometry(10, 10, 10)
+  const boxGeometry = new THREE.BoxGeometry(15, 15, 15)
   const boxMaterial = new THREE.MeshPhongMaterial({ color: 0xff9900 })
   let cube = new THREE.Mesh(boxGeometry, boxMaterial)
   return cube
