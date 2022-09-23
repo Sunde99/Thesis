@@ -31,6 +31,7 @@ const createGround_1 = require("./createGround");
 const pointLights_1 = require("./lights/pointLights");
 const ambientLights_1 = require("./lights/ambientLights");
 const directionalLights_1 = require("./lights/directionalLights");
+const Water2_1 = require("three/examples/jsm/objects/Water2");
 // import { createGroundFromHeightmap } from './createGround'
 /**
  * A class to set up some basic scene elements to minimize code in the
@@ -65,10 +66,23 @@ class BasicScene extends THREE.Scene {
     initialize(debug = true, addGridHelper = true) {
         // setup camera
         this.camera = new THREE.PerspectiveCamera(35, this.width / this.height, 0.1, 1000);
-        this.camera.position.z = 120;
+        this.camera.position.z = 200;
         this.camera.position.y = 120;
         this.camera.position.x = 120;
-        this.background = new THREE.Color(0x87ceeb);
+        this.background = new THREE.CubeTextureLoader().setPath('../skybox/').load([
+            // 'uw_ft.jpg',
+            // 'uw_bk.jpg',
+            // 'uw_up.jpg',
+            // 'uw_dn.jpg',
+            // 'uw_rt.jpg',
+            // 'uw_lf.jpg',
+            'TinesNeck.jpg',
+            'TinesNeck.jpg',
+            'TinesNeck.jpg',
+            'TinesNeck.jpg',
+            'TinesNeck.jpg',
+            'TinesNeck.jpg',
+        ]);
         // setup renderer
         this.renderer = new THREE.WebGLRenderer({
             canvas: document.getElementById('app'),
@@ -99,6 +113,18 @@ class BasicScene extends THREE.Scene {
         });
         this.groundMesh = (0, createGround_1.createGroundFromHeightmap)();
         this.add(this.groundMesh);
+        // Wa'a
+        const waterGeometry = new THREE.PlaneGeometry(300, 300);
+        const textureLoader = new THREE.TextureLoader();
+        const flowMap = textureLoader.load('../flowmap/Water_1_M_Flow.jpg');
+        const water = new Water2_1.Water(waterGeometry, {
+            scale: 2,
+            flowMap: flowMap,
+        });
+        water.position.y = 70;
+        water.rotation.x = -Math.PI / 2;
+        this.add(water);
+        // Wa'a
         // setup Debugger
         if (debug) {
             this.debugger = new dat_gui_1.GUI();
@@ -113,9 +139,9 @@ class BasicScene extends THREE.Scene {
             // Add the submergedObjects with some properties
             for (let i = 0; i < submergedObjects.length; i++) {
                 const submergedObjectGroup = this.debugger.addFolder('submergedObject ' + i);
-                submergedObjectGroup.add(submergedObjects[i].position, 'x', -50, 50);
-                submergedObjectGroup.add(submergedObjects[i].position, 'y', 0.5, 50);
-                submergedObjectGroup.add(submergedObjects[i].position, 'z', -50, 50);
+                submergedObjectGroup.add(submergedObjects[i].position, 'x', -75, 75);
+                submergedObjectGroup.add(submergedObjects[i].position, 'y', 0.5, 100);
+                submergedObjectGroup.add(submergedObjects[i].position, 'z', -75, 75);
                 submergedObjectGroup
                     .add(submergedObjects[i].rotation, 'y', 0, Math.PI * 2)
                     .name('rot');

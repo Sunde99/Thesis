@@ -25,15 +25,15 @@ var __importStar = (this && this.__importStar) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.placeSubmergedObjects = void 0;
 const THREE = __importStar(require("three"));
-const createBall = () => {
-    const sphereGeometry = new THREE.SphereGeometry();
-    const sphereMaterial = new THREE.MeshBasicMaterial({ color: 0xff0099 });
+const createSphere = () => {
+    const sphereGeometry = new THREE.SphereGeometry(16, 32, 16);
+    const sphereMaterial = new THREE.MeshPhongMaterial({ color: 0x090fff });
     let sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
     return sphere;
 };
 const createBox = () => {
-    const boxGeometry = new THREE.BoxGeometry(10, 10, 10);
-    const boxMaterial = new THREE.MeshBasicMaterial({ color: 0xff9900 });
+    const boxGeometry = new THREE.BoxGeometry(15, 15, 15);
+    const boxMaterial = new THREE.MeshPhongMaterial({ color: 0xff9900 });
     let cube = new THREE.Mesh(boxGeometry, boxMaterial);
     return cube;
 };
@@ -44,19 +44,25 @@ const loadSubmergedObjects = () => {
     const amountOfObjects = 5; // Take this as param
     // Randomly creates the geometry + materials
     for (let i = 0; i < amountOfObjects; i++) {
-        submergedObjects.push(createBox());
+        const randomNum = Math.floor(Math.random() * 2);
+        if (randomNum == 1) {
+            submergedObjects.push(createBox());
+        }
+        else {
+            submergedObjects.push(createSphere());
+        }
     }
     return submergedObjects;
 };
 const placeSubmergedObjects = () => {
     const submergedObjects = loadSubmergedObjects();
     // Sets up outer bounds
-    const minXValue = -50;
-    const maxXValue = 50;
+    const minXValue = -75;
+    const maxXValue = 75;
     const minYValue = -1;
     const maxYValue = 30;
-    const minZValue = -50;
-    const maxZValue = 50;
+    const minZValue = -75;
+    const maxZValue = 75;
     submergedObjects.forEach((submergedObject) => {
         submergedObject.position.y = 0.5;
         // Randomizes position and rotation
@@ -64,7 +70,7 @@ const placeSubmergedObjects = () => {
         submergedObject.position.x =
             Math.random() * (maxXValue - minXValue) + minXValue;
         submergedObject.position.y =
-            Math.random() * (maxXValue - minXValue) + minXValue;
+            Math.random() * (maxYValue - minYValue) + minYValue;
         submergedObject.position.z =
             Math.random() * (maxZValue - minZValue) + minZValue;
         submergedObject.rotation.setFromVector3(new THREE.Vector3(0, submergedObjectRotation, 0));

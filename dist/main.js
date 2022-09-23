@@ -61,6 +61,7 @@ const createGround_1 = __webpack_require__(6);
 const pointLights_1 = __webpack_require__(7);
 const ambientLights_1 = __webpack_require__(8);
 const directionalLights_1 = __webpack_require__(9);
+const Water2_1 = __webpack_require__(10);
 // import { createGroundFromHeightmap } from './createGround'
 /**
  * A class to set up some basic scene elements to minimize code in the
@@ -95,10 +96,19 @@ class BasicScene extends THREE.Scene {
     initialize(debug = true, addGridHelper = true) {
         // setup camera
         this.camera = new THREE.PerspectiveCamera(35, this.width / this.height, 0.1, 1000);
-        this.camera.position.z = 120;
+        this.camera.position.z = 200;
         this.camera.position.y = 120;
         this.camera.position.x = 120;
-        this.background = new THREE.Color(0x87ceeb);
+        this.background = new THREE.CubeTextureLoader()
+            .setPath('../skybox/')
+            .load([
+            'uw_ft.jpg',
+            'uw_bk.jpg',
+            'uw_up.jpg',
+            'uw_dn.jpg',
+            'uw_rt.jpg',
+            'uw_lf.jpg',
+        ]);
         // setup renderer
         this.renderer = new THREE.WebGLRenderer({
             canvas: document.getElementById('app'),
@@ -129,6 +139,18 @@ class BasicScene extends THREE.Scene {
         });
         this.groundMesh = (0, createGround_1.createGroundFromHeightmap)();
         this.add(this.groundMesh);
+        // Wa'a
+        const waterGeometry = new THREE.PlaneGeometry(300, 300);
+        const textureLoader = new THREE.TextureLoader();
+        const flowMap = textureLoader.load('../flowmap/Water_1_M_Flow.jpg');
+        const water = new Water2_1.Water(waterGeometry, {
+            scale: 2,
+            flowMap: flowMap,
+        });
+        water.position.y = 70;
+        water.rotation.x = -Math.PI / 2;
+        this.add(water);
+        // Wa'a
         // setup Debugger
         if (debug) {
             this.debugger = new dat_gui_1.GUI();
@@ -144,7 +166,7 @@ class BasicScene extends THREE.Scene {
             for (let i = 0; i < submergedObjects.length; i++) {
                 const submergedObjectGroup = this.debugger.addFolder('submergedObject ' + i);
                 submergedObjectGroup.add(submergedObjects[i].position, 'x', -75, 75);
-                submergedObjectGroup.add(submergedObjects[i].position, 'y', 0.5, 50);
+                submergedObjectGroup.add(submergedObjects[i].position, 'y', 0.5, 100);
                 submergedObjectGroup.add(submergedObjects[i].position, 'z', -75, 75);
                 submergedObjectGroup
                     .add(submergedObjects[i].rotation, 'y', 0, Math.PI * 2)
@@ -54061,13 +54083,13 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.placeSubmergedObjects = void 0;
 const THREE = __importStar(__webpack_require__(2));
 const createSphere = () => {
-    const sphereGeometry = new THREE.SphereGeometry(10, 32, 16);
+    const sphereGeometry = new THREE.SphereGeometry(16, 32, 16);
     const sphereMaterial = new THREE.MeshPhongMaterial({ color: 0x090fff });
     let sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
     return sphere;
 };
 const createBox = () => {
-    const boxGeometry = new THREE.BoxGeometry(10, 10, 10);
+    const boxGeometry = new THREE.BoxGeometry(15, 15, 15);
     const boxMaterial = new THREE.MeshPhongMaterial({ color: 0xff9900 });
     let cube = new THREE.Mesh(boxGeometry, boxMaterial);
     return cube;
@@ -54306,6 +54328,959 @@ const createDirectionalLights = (scene) => {
     return directionalLight;
 };
 exports.createDirectionalLights = createDirectionalLights;
+
+
+/***/ }),
+/* 10 */
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "Water": () => (/* binding */ Water)
+/* harmony export */ });
+/* harmony import */ var three__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(2);
+/* harmony import */ var _objects_Reflector_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(11);
+/* harmony import */ var _objects_Refractor_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(12);
+
+
+
+
+/**
+ * References:
+ *	https://alex.vlachos.com/graphics/Vlachos-SIGGRAPH10-WaterFlow.pdf
+ *	http://graphicsrunner.blogspot.de/2010/08/water-using-flow-maps.html
+ *
+ */
+
+class Water extends three__WEBPACK_IMPORTED_MODULE_0__.Mesh {
+
+	constructor( geometry, options = {} ) {
+
+		super( geometry );
+
+		this.isWater = true;
+
+		this.type = 'Water';
+
+		const scope = this;
+
+		const color = ( options.color !== undefined ) ? new three__WEBPACK_IMPORTED_MODULE_0__.Color( options.color ) : new three__WEBPACK_IMPORTED_MODULE_0__.Color( 0xFFFFFF );
+		const textureWidth = options.textureWidth || 512;
+		const textureHeight = options.textureHeight || 512;
+		const clipBias = options.clipBias || 0;
+		const flowDirection = options.flowDirection || new three__WEBPACK_IMPORTED_MODULE_0__.Vector2( 1, 0 );
+		const flowSpeed = options.flowSpeed || 0.03;
+		const reflectivity = options.reflectivity || 0.02;
+		const scale = options.scale || 1;
+		const shader = options.shader || Water.WaterShader;
+
+		const textureLoader = new three__WEBPACK_IMPORTED_MODULE_0__.TextureLoader();
+
+		const flowMap = options.flowMap || undefined;
+		const normalMap0 = options.normalMap0 || textureLoader.load( 'textures/water/Water_1_M_Normal.jpg' );
+		const normalMap1 = options.normalMap1 || textureLoader.load( 'textures/water/Water_2_M_Normal.jpg' );
+
+		const cycle = 0.15; // a cycle of a flow map phase
+		const halfCycle = cycle * 0.5;
+		const textureMatrix = new three__WEBPACK_IMPORTED_MODULE_0__.Matrix4();
+		const clock = new three__WEBPACK_IMPORTED_MODULE_0__.Clock();
+
+		// internal components
+
+		if ( _objects_Reflector_js__WEBPACK_IMPORTED_MODULE_1__.Reflector === undefined ) {
+
+			console.error( 'THREE.Water: Required component Reflector not found.' );
+			return;
+
+		}
+
+		if ( _objects_Refractor_js__WEBPACK_IMPORTED_MODULE_2__.Refractor === undefined ) {
+
+			console.error( 'THREE.Water: Required component Refractor not found.' );
+			return;
+
+		}
+
+		const reflector = new _objects_Reflector_js__WEBPACK_IMPORTED_MODULE_1__.Reflector( geometry, {
+			textureWidth: textureWidth,
+			textureHeight: textureHeight,
+			clipBias: clipBias
+		} );
+
+		const refractor = new _objects_Refractor_js__WEBPACK_IMPORTED_MODULE_2__.Refractor( geometry, {
+			textureWidth: textureWidth,
+			textureHeight: textureHeight,
+			clipBias: clipBias
+		} );
+
+		reflector.matrixAutoUpdate = false;
+		refractor.matrixAutoUpdate = false;
+
+		// material
+
+		this.material = new three__WEBPACK_IMPORTED_MODULE_0__.ShaderMaterial( {
+			uniforms: three__WEBPACK_IMPORTED_MODULE_0__.UniformsUtils.merge( [
+				three__WEBPACK_IMPORTED_MODULE_0__.UniformsLib.fog,
+				shader.uniforms
+			] ),
+			vertexShader: shader.vertexShader,
+			fragmentShader: shader.fragmentShader,
+			transparent: true,
+			fog: true
+		} );
+
+		if ( flowMap !== undefined ) {
+
+			this.material.defines.USE_FLOWMAP = '';
+			this.material.uniforms[ 'tFlowMap' ] = {
+				type: 't',
+				value: flowMap
+			};
+
+		} else {
+
+			this.material.uniforms[ 'flowDirection' ] = {
+				type: 'v2',
+				value: flowDirection
+			};
+
+		}
+
+		// maps
+
+		normalMap0.wrapS = normalMap0.wrapT = three__WEBPACK_IMPORTED_MODULE_0__.RepeatWrapping;
+		normalMap1.wrapS = normalMap1.wrapT = three__WEBPACK_IMPORTED_MODULE_0__.RepeatWrapping;
+
+		this.material.uniforms[ 'tReflectionMap' ].value = reflector.getRenderTarget().texture;
+		this.material.uniforms[ 'tRefractionMap' ].value = refractor.getRenderTarget().texture;
+		this.material.uniforms[ 'tNormalMap0' ].value = normalMap0;
+		this.material.uniforms[ 'tNormalMap1' ].value = normalMap1;
+
+		// water
+
+		this.material.uniforms[ 'color' ].value = color;
+		this.material.uniforms[ 'reflectivity' ].value = reflectivity;
+		this.material.uniforms[ 'textureMatrix' ].value = textureMatrix;
+
+		// inital values
+
+		this.material.uniforms[ 'config' ].value.x = 0; // flowMapOffset0
+		this.material.uniforms[ 'config' ].value.y = halfCycle; // flowMapOffset1
+		this.material.uniforms[ 'config' ].value.z = halfCycle; // halfCycle
+		this.material.uniforms[ 'config' ].value.w = scale; // scale
+
+		// functions
+
+		function updateTextureMatrix( camera ) {
+
+			textureMatrix.set(
+				0.5, 0.0, 0.0, 0.5,
+				0.0, 0.5, 0.0, 0.5,
+				0.0, 0.0, 0.5, 0.5,
+				0.0, 0.0, 0.0, 1.0
+			);
+
+			textureMatrix.multiply( camera.projectionMatrix );
+			textureMatrix.multiply( camera.matrixWorldInverse );
+			textureMatrix.multiply( scope.matrixWorld );
+
+		}
+
+		function updateFlow() {
+
+			const delta = clock.getDelta();
+			const config = scope.material.uniforms[ 'config' ];
+
+			config.value.x += flowSpeed * delta; // flowMapOffset0
+			config.value.y = config.value.x + halfCycle; // flowMapOffset1
+
+			// Important: The distance between offsets should be always the value of "halfCycle".
+			// Moreover, both offsets should be in the range of [ 0, cycle ].
+			// This approach ensures a smooth water flow and avoids "reset" effects.
+
+			if ( config.value.x >= cycle ) {
+
+				config.value.x = 0;
+				config.value.y = halfCycle;
+
+			} else if ( config.value.y >= cycle ) {
+
+				config.value.y = config.value.y - cycle;
+
+			}
+
+		}
+
+		//
+
+		this.onBeforeRender = function ( renderer, scene, camera ) {
+
+			updateTextureMatrix( camera );
+			updateFlow();
+
+			scope.visible = false;
+
+			reflector.matrixWorld.copy( scope.matrixWorld );
+			refractor.matrixWorld.copy( scope.matrixWorld );
+
+			reflector.onBeforeRender( renderer, scene, camera );
+			refractor.onBeforeRender( renderer, scene, camera );
+
+			scope.visible = true;
+
+		};
+
+	}
+
+}
+
+Water.WaterShader = {
+
+	uniforms: {
+
+		'color': {
+			type: 'c',
+			value: null
+		},
+
+		'reflectivity': {
+			type: 'f',
+			value: 0
+		},
+
+		'tReflectionMap': {
+			type: 't',
+			value: null
+		},
+
+		'tRefractionMap': {
+			type: 't',
+			value: null
+		},
+
+		'tNormalMap0': {
+			type: 't',
+			value: null
+		},
+
+		'tNormalMap1': {
+			type: 't',
+			value: null
+		},
+
+		'textureMatrix': {
+			type: 'm4',
+			value: null
+		},
+
+		'config': {
+			type: 'v4',
+			value: new three__WEBPACK_IMPORTED_MODULE_0__.Vector4()
+		}
+
+	},
+
+	vertexShader: /* glsl */`
+
+		#include <common>
+		#include <fog_pars_vertex>
+		#include <logdepthbuf_pars_vertex>
+
+		uniform mat4 textureMatrix;
+
+		varying vec4 vCoord;
+		varying vec2 vUv;
+		varying vec3 vToEye;
+
+		void main() {
+
+			vUv = uv;
+			vCoord = textureMatrix * vec4( position, 1.0 );
+
+			vec4 worldPosition = modelMatrix * vec4( position, 1.0 );
+			vToEye = cameraPosition - worldPosition.xyz;
+
+			vec4 mvPosition =  viewMatrix * worldPosition; // used in fog_vertex
+			gl_Position = projectionMatrix * mvPosition;
+
+			#include <logdepthbuf_vertex>
+			#include <fog_vertex>
+
+		}`,
+
+	fragmentShader: /* glsl */`
+
+		#include <common>
+		#include <fog_pars_fragment>
+		#include <logdepthbuf_pars_fragment>
+
+		uniform sampler2D tReflectionMap;
+		uniform sampler2D tRefractionMap;
+		uniform sampler2D tNormalMap0;
+		uniform sampler2D tNormalMap1;
+
+		#ifdef USE_FLOWMAP
+			uniform sampler2D tFlowMap;
+		#else
+			uniform vec2 flowDirection;
+		#endif
+
+		uniform vec3 color;
+		uniform float reflectivity;
+		uniform vec4 config;
+
+		varying vec4 vCoord;
+		varying vec2 vUv;
+		varying vec3 vToEye;
+
+		void main() {
+
+			#include <logdepthbuf_fragment>
+
+			float flowMapOffset0 = config.x;
+			float flowMapOffset1 = config.y;
+			float halfCycle = config.z;
+			float scale = config.w;
+
+			vec3 toEye = normalize( vToEye );
+
+			// determine flow direction
+			vec2 flow;
+			#ifdef USE_FLOWMAP
+				flow = texture2D( tFlowMap, vUv ).rg * 2.0 - 1.0;
+			#else
+				flow = flowDirection;
+			#endif
+			flow.x *= - 1.0;
+
+			// sample normal maps (distort uvs with flowdata)
+			vec4 normalColor0 = texture2D( tNormalMap0, ( vUv * scale ) + flow * flowMapOffset0 );
+			vec4 normalColor1 = texture2D( tNormalMap1, ( vUv * scale ) + flow * flowMapOffset1 );
+
+			// linear interpolate to get the final normal color
+			float flowLerp = abs( halfCycle - flowMapOffset0 ) / halfCycle;
+			vec4 normalColor = mix( normalColor0, normalColor1, flowLerp );
+
+			// calculate normal vector
+			vec3 normal = normalize( vec3( normalColor.r * 2.0 - 1.0, normalColor.b,  normalColor.g * 2.0 - 1.0 ) );
+
+			// calculate the fresnel term to blend reflection and refraction maps
+			float theta = max( dot( toEye, normal ), 0.0 );
+			float reflectance = reflectivity + ( 1.0 - reflectivity ) * pow( ( 1.0 - theta ), 5.0 );
+
+			// calculate final uv coords
+			vec3 coord = vCoord.xyz / vCoord.w;
+			vec2 uv = coord.xy + coord.z * normal.xz * 0.05;
+
+			vec4 reflectColor = texture2D( tReflectionMap, vec2( 1.0 - uv.x, uv.y ) );
+			vec4 refractColor = texture2D( tRefractionMap, uv );
+
+			// multiply water color with the mix of both textures
+			gl_FragColor = vec4( color, 1.0 ) * mix( refractColor, reflectColor, reflectance );
+
+			#include <tonemapping_fragment>
+			#include <encodings_fragment>
+			#include <fog_fragment>
+
+		}`
+
+};
+
+
+
+
+/***/ }),
+/* 11 */
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "Reflector": () => (/* binding */ Reflector)
+/* harmony export */ });
+/* harmony import */ var three__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(2);
+
+
+class Reflector extends three__WEBPACK_IMPORTED_MODULE_0__.Mesh {
+
+	constructor( geometry, options = {} ) {
+
+		super( geometry );
+
+		this.isReflector = true;
+
+		this.type = 'Reflector';
+		this.camera = new three__WEBPACK_IMPORTED_MODULE_0__.PerspectiveCamera();
+
+		const scope = this;
+
+		const color = ( options.color !== undefined ) ? new three__WEBPACK_IMPORTED_MODULE_0__.Color( options.color ) : new three__WEBPACK_IMPORTED_MODULE_0__.Color( 0x7F7F7F );
+		const textureWidth = options.textureWidth || 512;
+		const textureHeight = options.textureHeight || 512;
+		const clipBias = options.clipBias || 0;
+		const shader = options.shader || Reflector.ReflectorShader;
+		const multisample = ( options.multisample !== undefined ) ? options.multisample : 4;
+
+		//
+
+		const reflectorPlane = new three__WEBPACK_IMPORTED_MODULE_0__.Plane();
+		const normal = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
+		const reflectorWorldPosition = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
+		const cameraWorldPosition = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
+		const rotationMatrix = new three__WEBPACK_IMPORTED_MODULE_0__.Matrix4();
+		const lookAtPosition = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3( 0, 0, - 1 );
+		const clipPlane = new three__WEBPACK_IMPORTED_MODULE_0__.Vector4();
+
+		const view = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
+		const target = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
+		const q = new three__WEBPACK_IMPORTED_MODULE_0__.Vector4();
+
+		const textureMatrix = new three__WEBPACK_IMPORTED_MODULE_0__.Matrix4();
+		const virtualCamera = this.camera;
+
+		const renderTarget = new three__WEBPACK_IMPORTED_MODULE_0__.WebGLRenderTarget( textureWidth, textureHeight, { samples: multisample, type: three__WEBPACK_IMPORTED_MODULE_0__.HalfFloatType } );
+
+		const material = new three__WEBPACK_IMPORTED_MODULE_0__.ShaderMaterial( {
+			uniforms: three__WEBPACK_IMPORTED_MODULE_0__.UniformsUtils.clone( shader.uniforms ),
+			fragmentShader: shader.fragmentShader,
+			vertexShader: shader.vertexShader
+		} );
+
+		material.uniforms[ 'tDiffuse' ].value = renderTarget.texture;
+		material.uniforms[ 'color' ].value = color;
+		material.uniforms[ 'textureMatrix' ].value = textureMatrix;
+
+		this.material = material;
+
+		this.onBeforeRender = function ( renderer, scene, camera ) {
+
+			reflectorWorldPosition.setFromMatrixPosition( scope.matrixWorld );
+			cameraWorldPosition.setFromMatrixPosition( camera.matrixWorld );
+
+			rotationMatrix.extractRotation( scope.matrixWorld );
+
+			normal.set( 0, 0, 1 );
+			normal.applyMatrix4( rotationMatrix );
+
+			view.subVectors( reflectorWorldPosition, cameraWorldPosition );
+
+			// Avoid rendering when reflector is facing away
+
+			if ( view.dot( normal ) > 0 ) return;
+
+			view.reflect( normal ).negate();
+			view.add( reflectorWorldPosition );
+
+			rotationMatrix.extractRotation( camera.matrixWorld );
+
+			lookAtPosition.set( 0, 0, - 1 );
+			lookAtPosition.applyMatrix4( rotationMatrix );
+			lookAtPosition.add( cameraWorldPosition );
+
+			target.subVectors( reflectorWorldPosition, lookAtPosition );
+			target.reflect( normal ).negate();
+			target.add( reflectorWorldPosition );
+
+			virtualCamera.position.copy( view );
+			virtualCamera.up.set( 0, 1, 0 );
+			virtualCamera.up.applyMatrix4( rotationMatrix );
+			virtualCamera.up.reflect( normal );
+			virtualCamera.lookAt( target );
+
+			virtualCamera.far = camera.far; // Used in WebGLBackground
+
+			virtualCamera.updateMatrixWorld();
+			virtualCamera.projectionMatrix.copy( camera.projectionMatrix );
+
+			// Update the texture matrix
+			textureMatrix.set(
+				0.5, 0.0, 0.0, 0.5,
+				0.0, 0.5, 0.0, 0.5,
+				0.0, 0.0, 0.5, 0.5,
+				0.0, 0.0, 0.0, 1.0
+			);
+			textureMatrix.multiply( virtualCamera.projectionMatrix );
+			textureMatrix.multiply( virtualCamera.matrixWorldInverse );
+			textureMatrix.multiply( scope.matrixWorld );
+
+			// Now update projection matrix with new clip plane, implementing code from: http://www.terathon.com/code/oblique.html
+			// Paper explaining this technique: http://www.terathon.com/lengyel/Lengyel-Oblique.pdf
+			reflectorPlane.setFromNormalAndCoplanarPoint( normal, reflectorWorldPosition );
+			reflectorPlane.applyMatrix4( virtualCamera.matrixWorldInverse );
+
+			clipPlane.set( reflectorPlane.normal.x, reflectorPlane.normal.y, reflectorPlane.normal.z, reflectorPlane.constant );
+
+			const projectionMatrix = virtualCamera.projectionMatrix;
+
+			q.x = ( Math.sign( clipPlane.x ) + projectionMatrix.elements[ 8 ] ) / projectionMatrix.elements[ 0 ];
+			q.y = ( Math.sign( clipPlane.y ) + projectionMatrix.elements[ 9 ] ) / projectionMatrix.elements[ 5 ];
+			q.z = - 1.0;
+			q.w = ( 1.0 + projectionMatrix.elements[ 10 ] ) / projectionMatrix.elements[ 14 ];
+
+			// Calculate the scaled plane vector
+			clipPlane.multiplyScalar( 2.0 / clipPlane.dot( q ) );
+
+			// Replacing the third row of the projection matrix
+			projectionMatrix.elements[ 2 ] = clipPlane.x;
+			projectionMatrix.elements[ 6 ] = clipPlane.y;
+			projectionMatrix.elements[ 10 ] = clipPlane.z + 1.0 - clipBias;
+			projectionMatrix.elements[ 14 ] = clipPlane.w;
+
+			// Render
+			scope.visible = false;
+
+			const currentRenderTarget = renderer.getRenderTarget();
+
+			const currentXrEnabled = renderer.xr.enabled;
+			const currentShadowAutoUpdate = renderer.shadowMap.autoUpdate;
+			const currentOutputEncoding = renderer.outputEncoding;
+			const currentToneMapping = renderer.toneMapping;
+
+			renderer.xr.enabled = false; // Avoid camera modification
+			renderer.shadowMap.autoUpdate = false; // Avoid re-computing shadows
+			renderer.outputEncoding = three__WEBPACK_IMPORTED_MODULE_0__.LinearEncoding;
+			renderer.toneMapping = three__WEBPACK_IMPORTED_MODULE_0__.NoToneMapping;
+
+			renderer.setRenderTarget( renderTarget );
+
+			renderer.state.buffers.depth.setMask( true ); // make sure the depth buffer is writable so it can be properly cleared, see #18897
+
+			if ( renderer.autoClear === false ) renderer.clear();
+			renderer.render( scene, virtualCamera );
+
+			renderer.xr.enabled = currentXrEnabled;
+			renderer.shadowMap.autoUpdate = currentShadowAutoUpdate;
+			renderer.outputEncoding = currentOutputEncoding;
+			renderer.toneMapping = currentToneMapping;
+
+			renderer.setRenderTarget( currentRenderTarget );
+
+			// Restore viewport
+
+			const viewport = camera.viewport;
+
+			if ( viewport !== undefined ) {
+
+				renderer.state.viewport( viewport );
+
+			}
+
+			scope.visible = true;
+
+		};
+
+		this.getRenderTarget = function () {
+
+			return renderTarget;
+
+		};
+
+		this.dispose = function () {
+
+			renderTarget.dispose();
+			scope.material.dispose();
+
+		};
+
+	}
+
+}
+
+Reflector.ReflectorShader = {
+
+	uniforms: {
+
+		'color': {
+			value: null
+		},
+
+		'tDiffuse': {
+			value: null
+		},
+
+		'textureMatrix': {
+			value: null
+		}
+
+	},
+
+	vertexShader: /* glsl */`
+		uniform mat4 textureMatrix;
+		varying vec4 vUv;
+
+		#include <common>
+		#include <logdepthbuf_pars_vertex>
+
+		void main() {
+
+			vUv = textureMatrix * vec4( position, 1.0 );
+
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+			#include <logdepthbuf_vertex>
+
+		}`,
+
+	fragmentShader: /* glsl */`
+		uniform vec3 color;
+		uniform sampler2D tDiffuse;
+		varying vec4 vUv;
+
+		#include <logdepthbuf_pars_fragment>
+
+		float blendOverlay( float base, float blend ) {
+
+			return( base < 0.5 ? ( 2.0 * base * blend ) : ( 1.0 - 2.0 * ( 1.0 - base ) * ( 1.0 - blend ) ) );
+
+		}
+
+		vec3 blendOverlay( vec3 base, vec3 blend ) {
+
+			return vec3( blendOverlay( base.r, blend.r ), blendOverlay( base.g, blend.g ), blendOverlay( base.b, blend.b ) );
+
+		}
+
+		void main() {
+
+			#include <logdepthbuf_fragment>
+
+			vec4 base = texture2DProj( tDiffuse, vUv );
+			gl_FragColor = vec4( blendOverlay( base.rgb, color ), 1.0 );
+
+			#include <tonemapping_fragment>
+			#include <encodings_fragment>
+
+		}`
+};
+
+
+
+
+/***/ }),
+/* 12 */
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "Refractor": () => (/* binding */ Refractor)
+/* harmony export */ });
+/* harmony import */ var three__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(2);
+
+
+class Refractor extends three__WEBPACK_IMPORTED_MODULE_0__.Mesh {
+
+	constructor( geometry, options = {} ) {
+
+		super( geometry );
+
+		this.isRefractor = true;
+
+		this.type = 'Refractor';
+		this.camera = new three__WEBPACK_IMPORTED_MODULE_0__.PerspectiveCamera();
+
+		const scope = this;
+
+		const color = ( options.color !== undefined ) ? new three__WEBPACK_IMPORTED_MODULE_0__.Color( options.color ) : new three__WEBPACK_IMPORTED_MODULE_0__.Color( 0x7F7F7F );
+		const textureWidth = options.textureWidth || 512;
+		const textureHeight = options.textureHeight || 512;
+		const clipBias = options.clipBias || 0;
+		const shader = options.shader || Refractor.RefractorShader;
+		const multisample = ( options.multisample !== undefined ) ? options.multisample : 4;
+
+		//
+
+		const virtualCamera = this.camera;
+		virtualCamera.matrixAutoUpdate = false;
+		virtualCamera.userData.refractor = true;
+
+		//
+
+		const refractorPlane = new three__WEBPACK_IMPORTED_MODULE_0__.Plane();
+		const textureMatrix = new three__WEBPACK_IMPORTED_MODULE_0__.Matrix4();
+
+		// render target
+
+		const renderTarget = new three__WEBPACK_IMPORTED_MODULE_0__.WebGLRenderTarget( textureWidth, textureHeight, { samples: multisample, type: three__WEBPACK_IMPORTED_MODULE_0__.HalfFloatType } );
+
+		// material
+
+		this.material = new three__WEBPACK_IMPORTED_MODULE_0__.ShaderMaterial( {
+			uniforms: three__WEBPACK_IMPORTED_MODULE_0__.UniformsUtils.clone( shader.uniforms ),
+			vertexShader: shader.vertexShader,
+			fragmentShader: shader.fragmentShader,
+			transparent: true // ensures, refractors are drawn from farthest to closest
+		} );
+
+		this.material.uniforms[ 'color' ].value = color;
+		this.material.uniforms[ 'tDiffuse' ].value = renderTarget.texture;
+		this.material.uniforms[ 'textureMatrix' ].value = textureMatrix;
+
+		// functions
+
+		const visible = ( function () {
+
+			const refractorWorldPosition = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
+			const cameraWorldPosition = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
+			const rotationMatrix = new three__WEBPACK_IMPORTED_MODULE_0__.Matrix4();
+
+			const view = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
+			const normal = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
+
+			return function visible( camera ) {
+
+				refractorWorldPosition.setFromMatrixPosition( scope.matrixWorld );
+				cameraWorldPosition.setFromMatrixPosition( camera.matrixWorld );
+
+				view.subVectors( refractorWorldPosition, cameraWorldPosition );
+
+				rotationMatrix.extractRotation( scope.matrixWorld );
+
+				normal.set( 0, 0, 1 );
+				normal.applyMatrix4( rotationMatrix );
+
+				return view.dot( normal ) < 0;
+
+			};
+
+		} )();
+
+		const updateRefractorPlane = ( function () {
+
+			const normal = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
+			const position = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
+			const quaternion = new three__WEBPACK_IMPORTED_MODULE_0__.Quaternion();
+			const scale = new three__WEBPACK_IMPORTED_MODULE_0__.Vector3();
+
+			return function updateRefractorPlane() {
+
+				scope.matrixWorld.decompose( position, quaternion, scale );
+				normal.set( 0, 0, 1 ).applyQuaternion( quaternion ).normalize();
+
+				// flip the normal because we want to cull everything above the plane
+
+				normal.negate();
+
+				refractorPlane.setFromNormalAndCoplanarPoint( normal, position );
+
+			};
+
+		} )();
+
+		const updateVirtualCamera = ( function () {
+
+			const clipPlane = new three__WEBPACK_IMPORTED_MODULE_0__.Plane();
+			const clipVector = new three__WEBPACK_IMPORTED_MODULE_0__.Vector4();
+			const q = new three__WEBPACK_IMPORTED_MODULE_0__.Vector4();
+
+			return function updateVirtualCamera( camera ) {
+
+				virtualCamera.matrixWorld.copy( camera.matrixWorld );
+				virtualCamera.matrixWorldInverse.copy( virtualCamera.matrixWorld ).invert();
+				virtualCamera.projectionMatrix.copy( camera.projectionMatrix );
+				virtualCamera.far = camera.far; // used in WebGLBackground
+
+				// The following code creates an oblique view frustum for clipping.
+				// see: Lengyel, Eric. “Oblique View Frustum Depth Projection and Clipping”.
+				// Journal of Game Development, Vol. 1, No. 2 (2005), Charles River Media, pp. 5–16
+
+				clipPlane.copy( refractorPlane );
+				clipPlane.applyMatrix4( virtualCamera.matrixWorldInverse );
+
+				clipVector.set( clipPlane.normal.x, clipPlane.normal.y, clipPlane.normal.z, clipPlane.constant );
+
+				// calculate the clip-space corner point opposite the clipping plane and
+				// transform it into camera space by multiplying it by the inverse of the projection matrix
+
+				const projectionMatrix = virtualCamera.projectionMatrix;
+
+				q.x = ( Math.sign( clipVector.x ) + projectionMatrix.elements[ 8 ] ) / projectionMatrix.elements[ 0 ];
+				q.y = ( Math.sign( clipVector.y ) + projectionMatrix.elements[ 9 ] ) / projectionMatrix.elements[ 5 ];
+				q.z = - 1.0;
+				q.w = ( 1.0 + projectionMatrix.elements[ 10 ] ) / projectionMatrix.elements[ 14 ];
+
+				// calculate the scaled plane vector
+
+				clipVector.multiplyScalar( 2.0 / clipVector.dot( q ) );
+
+				// replacing the third row of the projection matrix
+
+				projectionMatrix.elements[ 2 ] = clipVector.x;
+				projectionMatrix.elements[ 6 ] = clipVector.y;
+				projectionMatrix.elements[ 10 ] = clipVector.z + 1.0 - clipBias;
+				projectionMatrix.elements[ 14 ] = clipVector.w;
+
+			};
+
+		} )();
+
+		// This will update the texture matrix that is used for projective texture mapping in the shader.
+		// see: http://developer.download.nvidia.com/assets/gamedev/docs/projective_texture_mapping.pdf
+
+		function updateTextureMatrix( camera ) {
+
+			// this matrix does range mapping to [ 0, 1 ]
+
+			textureMatrix.set(
+				0.5, 0.0, 0.0, 0.5,
+				0.0, 0.5, 0.0, 0.5,
+				0.0, 0.0, 0.5, 0.5,
+				0.0, 0.0, 0.0, 1.0
+			);
+
+			// we use "Object Linear Texgen", so we need to multiply the texture matrix T
+			// (matrix above) with the projection and view matrix of the virtual camera
+			// and the model matrix of the refractor
+
+			textureMatrix.multiply( camera.projectionMatrix );
+			textureMatrix.multiply( camera.matrixWorldInverse );
+			textureMatrix.multiply( scope.matrixWorld );
+
+		}
+
+		//
+
+		function render( renderer, scene, camera ) {
+
+			scope.visible = false;
+
+			const currentRenderTarget = renderer.getRenderTarget();
+			const currentXrEnabled = renderer.xr.enabled;
+			const currentShadowAutoUpdate = renderer.shadowMap.autoUpdate;
+			const currentOutputEncoding = renderer.outputEncoding;
+			const currentToneMapping = renderer.toneMapping;
+
+			renderer.xr.enabled = false; // avoid camera modification
+			renderer.shadowMap.autoUpdate = false; // avoid re-computing shadows
+			renderer.outputEncoding = three__WEBPACK_IMPORTED_MODULE_0__.LinearEncoding;
+			renderer.toneMapping = three__WEBPACK_IMPORTED_MODULE_0__.NoToneMapping;
+
+			renderer.setRenderTarget( renderTarget );
+			if ( renderer.autoClear === false ) renderer.clear();
+			renderer.render( scene, virtualCamera );
+
+			renderer.xr.enabled = currentXrEnabled;
+			renderer.shadowMap.autoUpdate = currentShadowAutoUpdate;
+			renderer.outputEncoding = currentOutputEncoding;
+			renderer.toneMapping = currentToneMapping;
+			renderer.setRenderTarget( currentRenderTarget );
+
+			// restore viewport
+
+			const viewport = camera.viewport;
+
+			if ( viewport !== undefined ) {
+
+				renderer.state.viewport( viewport );
+
+			}
+
+			scope.visible = true;
+
+		}
+
+		//
+
+		this.onBeforeRender = function ( renderer, scene, camera ) {
+
+			// ensure refractors are rendered only once per frame
+
+			if ( camera.userData.refractor === true ) return;
+
+			// avoid rendering when the refractor is viewed from behind
+
+			if ( ! visible( camera ) === true ) return;
+
+			// update
+
+			updateRefractorPlane();
+
+			updateTextureMatrix( camera );
+
+			updateVirtualCamera( camera );
+
+			render( renderer, scene, camera );
+
+		};
+
+		this.getRenderTarget = function () {
+
+			return renderTarget;
+
+		};
+
+		this.dispose = function () {
+
+			renderTarget.dispose();
+			scope.material.dispose();
+
+		};
+
+	}
+
+}
+
+Refractor.RefractorShader = {
+
+	uniforms: {
+
+		'color': {
+			value: null
+		},
+
+		'tDiffuse': {
+			value: null
+		},
+
+		'textureMatrix': {
+			value: null
+		}
+
+	},
+
+	vertexShader: /* glsl */`
+
+		uniform mat4 textureMatrix;
+
+		varying vec4 vUv;
+
+		void main() {
+
+			vUv = textureMatrix * vec4( position, 1.0 );
+			gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+		}`,
+
+	fragmentShader: /* glsl */`
+
+		uniform vec3 color;
+		uniform sampler2D tDiffuse;
+
+		varying vec4 vUv;
+
+		float blendOverlay( float base, float blend ) {
+
+			return( base < 0.5 ? ( 2.0 * base * blend ) : ( 1.0 - 2.0 * ( 1.0 - base ) * ( 1.0 - blend ) ) );
+
+		}
+
+		vec3 blendOverlay( vec3 base, vec3 blend ) {
+
+			return vec3( blendOverlay( base.r, blend.r ), blendOverlay( base.g, blend.g ), blendOverlay( base.b, blend.b ) );
+
+		}
+
+		void main() {
+
+			vec4 base = texture2DProj( tDiffuse, vUv );
+			gl_FragColor = vec4( blendOverlay( base.rgb, color ), 1.0 );
+
+			#include <tonemapping_fragment>
+			#include <encodings_fragment>
+
+		}`
+
+};
+
+
 
 
 /***/ })
