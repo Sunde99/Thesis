@@ -2,11 +2,18 @@ import * as THREE from 'three'
 import { GUI } from 'dat.gui'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { placeSubmergedObjects } from './submergedObject'
-import { PlaneGeometry, MeshStandardMaterial, DirectionalLight } from 'three'
+import {
+  PlaneGeometry,
+  MeshStandardMaterial,
+  DirectionalLight,
+  Scene,
+  TextureLoader,
+} from 'three'
 import { createGroundFromHeightmap } from './createGround'
 import { createPointLights } from './lights/pointLights'
 import { createAmbientLights } from './lights/ambientLights'
 import { createDirectionalLights } from './lights/directionalLights'
+import { Water } from 'three/examples/jsm/objects/Water2'
 // import { createGroundFromHeightmap } from './createGround'
 /**
  * A class to set up some basic scene elements to minimize code in the
@@ -48,11 +55,20 @@ export default class BasicScene extends THREE.Scene {
       0.1,
       1000,
     )
-    this.camera.position.z = 120
+    this.camera.position.z = 200
     this.camera.position.y = 120
     this.camera.position.x = 120
 
-    this.background = new THREE.Color(0x87ceeb)
+    this.background = new THREE.CubeTextureLoader()
+      .setPath('../skybox/')
+      .load([
+        'uw_ft.jpg',
+        'uw_bk.jpg',
+        'uw_up.jpg',
+        'uw_dn.jpg',
+        'uw_rt.jpg',
+        'uw_lf.jpg',
+      ])
 
     // setup renderer
     this.renderer = new THREE.WebGLRenderer({
@@ -98,6 +114,20 @@ export default class BasicScene extends THREE.Scene {
     this.groundMesh = createGroundFromHeightmap()
     this.add(this.groundMesh)
 
+    const waterGeometry = new THREE.PlaneGeometry(300, 300)
+
+    const textureLoader = new THREE.TextureLoader()
+    const flowMap = textureLoader.load('../flowmap/Water_1_M_Flow.jpg')
+
+    const water = new Water(waterGeometry, {
+      scale: 2,
+      flowMap: flowMap,
+    })
+
+    water.position.y = 70
+    water.rotation.x = -Math.PI / 2
+    this.add(water)
+
     // setup Debugger
     if (debug) {
       this.debugger = new GUI()
@@ -110,13 +140,17 @@ export default class BasicScene extends THREE.Scene {
       lightGroup.add(directionalLight, 'visible', false).name('visible - dir')
 
       lightGroup.open()
+
+      // const waterGroup = this.debugger.addFolder('Water')
+      // waterGroup.add(water, 'scale')
+
       // Add the submergedObjects with some properties
       for (let i = 0; i < submergedObjects.length; i++) {
         const submergedObjectGroup = this.debugger.addFolder(
-          'submergedObject ' + i,
+          'SubmergedObject ' + i,
         )
         submergedObjectGroup.add(submergedObjects[i].position, 'x', -75, 75)
-        submergedObjectGroup.add(submergedObjects[i].position, 'y', 0.5, 50)
+        submergedObjectGroup.add(submergedObjects[i].position, 'y', 0.5, 100)
         submergedObjectGroup.add(submergedObjects[i].position, 'z', -75, 75)
         submergedObjectGroup
           .add(submergedObjects[i].rotation, 'y', 0, Math.PI * 2)
