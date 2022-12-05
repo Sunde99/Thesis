@@ -1,2 +1,17 @@
-/node_modules
-/dist
+/project/node_modules
+/project/dist
+
+/pictures
+/papers
+/test
+
+/notes after Helwig talk.txt
+/Project_Description_Matias.pdf
+/Scripts
+
+/Project-Blender/__pycache__
+/Project-Blender/2626413_LEGO_basic_Bricks__1x1-4_and_2x2-4__small_and_large_.zip
+/Project-Blender/LICENSE.txt
+/Project-Blender/project.zip
+/Project-Blender/README.txt
+.gitignore
