@@ -1,6 +1,7 @@
 import bpy
 import sys
 import os
+import json
 
 # Set up imports
 dir = os.path.dirname(bpy.data.filepath)
@@ -96,7 +97,11 @@ def setupWater():
 
 
 # -------------------- Set up lego (randomize) -------------------- 
-def setupLego():
+def legoMetadata():
+    scale = [0.018132, 0.018132, 0.018132]
+    location = [-0.700407, -0.70933
+
+def setupLego(scale, location, rotation):
     
      # Load from file
     bpy.ops.import_mesh.stl(filepath="C:\\Users\Matias\\_Thesis\Project-Blender\\files\\LEGO-2X4-L_simple.stl")
@@ -107,30 +112,24 @@ def setupLego():
     bpy.context.object.active_material = lego_material
 
 
-    bpy.context.object.scale[0] = 0.02
-    bpy.context.object.scale[1] = 0.02
-    bpy.context.object.scale[2] = 0.02
+    bpy.context.object.scale[0] = 0.018132
+    bpy.context.object.scale[1] = 0.018132
+    bpy.context.object.scale[2] = 0.018132
 
-    bpy.context.object.location[0] = 0.5
-    bpy.context.object.location[1] = 0.76
-    bpy.context.object.location[2] = 0.375
+    bpy.context.object.location[0] = -0.700407
+    bpy.context.object.location[1] = -0.70933
+    bpy.context.object.location[2] = 0.541523
 
     bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME')
 
-    bpy.context.object.rotation_euler[0] = 3.141593
-    bpy.context.object.rotation_euler[1] = -3.141593
-    bpy.context.object.rotation_euler[2] = 2.69
+    bpy.context.object.rotation_euler[0] = 3.1416
+    bpy.context.object.rotation_euler[1] = -3.1416 
+    bpy.context.object.rotation_euler[2] = 2.6900
      # Build bricks (Maybe start with one big?)
      # Place on random pos
      # Random rotation
      # Random material
      
-    bpy.ops.transform.resize(value=(1.36265, 1.36265, 1.36265), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-     
-    bpy.ops.transform.translate(value=(0.233577, -0.0974, 0.044318), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-
-    bpy.ops.transform.resize(value=(0.665307, 0.665307, 0.665307), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=True, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False)
-
 
 # -------------------- Set up light (randomize?) -------------------- 
 def setupLight():
@@ -155,21 +154,38 @@ def render(name="name"):
     bpy.ops.render.render()
     
 def createJson():
+    path = 'C:\\Users\Matias\\_Thesis\\Project-Blender\\metadata.json'
+    if not (os.path.isfile(path)):
+        jsonString = {}
+        jsonFile = open("metadata.json", "w")
+        jsonFile.write(json.dumps(jsonString))
+        jsonFile.close()
+    metadata = open("metadata.json")
     
     
+def renderLoop():
+    amountOfImages = 2
+    for i in range(amountOfImages):
+        continue
+    print(bpy.data)
+#    for obj in bpy.data:
+#        print(obj)
+        
 
-setupGround()
+#setupGround()
 setupContainer()
 setupWater()
 setupLego()
-setupLight()
-setupCamera()
+#setupLight()
+#setupCamera()
 
-render("Water")
+renderLoop()
 
-bpy.data.objects["WaterTop"].hide_render = True
+#render("Water")
 
-render("NoWater")
+#bpy.data.objects["WaterTop"].hide_render = True
+
+#render("NoWater")
 
 # TODO REMOVE This is only while testing
 bpy.context.scene.render.engine = 'BLENDER_EEVEE'
