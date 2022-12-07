@@ -2,6 +2,7 @@ import bpy
 import sys
 import os
 import json
+import csv
 
 # Set up imports
 dir = os.path.dirname(bpy.data.filepath)
@@ -17,16 +18,51 @@ CleanScene.clean_scene()
 bpy.context.scene.render.engine = 'CYCLES'
 bpy.data.scenes["Scene"].cycles.use_denoising
 
+# Convert hex to rgb
+def srgb_to_linearrgb(c):
+    if   c < 0:       return 0
+    elif c < 0.04045: return c/12.92
+    else:             return ((c+0.055)/1.055)**2.4
+
+def hex_to_rgb(h,alpha=1):
+    r = (h & 0xff0000) >> 16
+    g = (h & 0x00ff00) >> 8
+    b = (h & 0x0000ff)
+    return tuple([srgb_to_linearrgb(c/0xff) for c in (r,g,b)] + [alpha])
+
 # -------------------- Set up ground -------------------- 
-def setupGround():
+def setupGround(texture, flipColors, primaryColor, secondaryColor):
+    
+    color1 = secondaryColor if flipColors else primaryColor
+    color2 = primaryColor if flipColors else secondaryColor
+    
     bpy.ops.mesh.primitive_plane_add(size=50)
     bpy.context.active_object.name = 'Ground'
     bpy.context.object.location[0] = 0
     bpy.context.object.location[1] = 0
     bpy.context.object.location[2] = 0
 
+    ground_material = bpy.data.materials.new('Ground_Material')
+    ground_material.use_nodes = True
+    P_BSDF = ground_material.node_tree.nodes.get('Principled BSDF')
+    P_BSDF.inputs[0].default_value = hex_to_rgb(int(color1))
+    
+    #Material
+    print(texture)
+    if (texture == 'Checkered'):
+        checker_node = ground_material.node_tree.nodes.new('ShaderNodeTexChecker')
 
-# TODO add material (randomize?)
+        ground_material.node_tree.links.new(checker_node.outputs[0], P_BSDF.inputs[0])
+        checker_node.inputs[3].default_value = 15
+        
+        checker_node.inputs[1].default_value = hex_to_rgb(int(color1))
+        checker_node.inputs[2].default_value = hex_to_rgb(int(color2))
+
+
+    bpy.context.object.active_material = ground_material
+
+
+
 
 # -------------------- Set up box (Fix dimentions) -------------------- 
 def setupContainer():
@@ -69,8 +105,8 @@ def setupContainer():
     bpy.ops.object.mode_set(mode = 'OBJECT')
 
 # -------------------- Set up water -------------------- 
-def setupWater():
-    bpy.ops.mesh.primitive_plane_add(size=2, location=(0,0,1.5))
+def setupWater(height):
+    bpy.ops.mesh.primitive_plane_add(size=2, location=(0,0,height))
     bpy.context.active_object.name = 'WaterTop'
 
     water_material = bpy.data.materials.new("Water_Material")
@@ -97,11 +133,8 @@ def setupWater():
 
 
 # -------------------- Set up lego (randomize) -------------------- 
-def legoMetadata():
-    scale = [0.018132, 0.018132, 0.018132]
-    location = [-0.700407, -0.70933
 
-def setupLego(scale, location, rotation):
+def setupLego(legoX, legoY, legoRot):
     
      # Load from file
     bpy.ops.import_mesh.stl(filepath="C:\\Users\Matias\\_Thesis\Project-Blender\\files\\LEGO-2X4-L_simple.stl")
@@ -110,21 +143,24 @@ def setupLego(scale, location, rotation):
     lego_material.use_nodes = True
     bpy.data.materials["Lego_Material"].node_tree.nodes["Principled BSDF"].inputs[0].default_value = (1, 0, 0, 1)
     bpy.context.object.active_material = lego_material
+    
+    bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME')
 
+    bpy.context.object.rotation_euler[0] = 3.1416
+    bpy.context.object.rotation_euler[1] = -3.1416 
+    bpy.context.object.rotation_euler[2] = legoRot
+
+    bpy.context.object.location[0] = legoX
+    bpy.context.object.location[1] = legoY
+    bpy.context.object.location[2] = 0.541523
 
     bpy.context.object.scale[0] = 0.018132
     bpy.context.object.scale[1] = 0.018132
     bpy.context.object.scale[2] = 0.018132
 
-    bpy.context.object.location[0] = -0.700407
-    bpy.context.object.location[1] = -0.70933
-    bpy.context.object.location[2] = 0.541523
+    
 
-    bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME')
 
-    bpy.context.object.rotation_euler[0] = 3.1416
-    bpy.context.object.rotation_euler[1] = -3.1416 
-    bpy.context.object.rotation_euler[2] = 2.6900
      # Build bricks (Maybe start with one big?)
      # Place on random pos
      # Random rotation
@@ -132,11 +168,11 @@ def setupLego(scale, location, rotation):
      
 
 # -------------------- Set up light (randomize?) -------------------- 
-def setupLight():
-    bpy.ops.object.light_add(location=(5, 2, 12), type='SPOT')
-    bpy.context.active_object.name = 'SpotLight'
-    bpy.data.lights["Spot"].energy = 10000
-    bpy.data.objects['SpotLight'].rotation_euler = (0.027, 0.465, 0.377)
+def setupLight(lightX, lightY, lightZ):
+    bpy.ops.object.light_add(location=(lightX, lightY, lightZ), type='POINT')
+    bpy.context.active_object.name = 'PointLight'
+    bpy.data.lights["Point"].energy = 20000
+    #bpy.data.objects['PointLight'].rotation_euler = (0.027, 0.465, 0.377)
 
 # -------------------- Set up camera (randomize?) -------------------- 
 def setupCamera():
@@ -163,25 +199,29 @@ def createJson():
     metadata = open("metadata.json")
     
     
-def renderLoop():
-    amountOfImages = 2
-    for i in range(amountOfImages):
-        continue
-    print(bpy.data)
+def renderLoop(file):
+    
+    metadata = csv.reader(file)
+    header = next(metadata)
+
+    for row in metadata:
+        CleanScene.clean_scene()
+        setupGround(row[1], int(row[2]), row[3], row[4])
+        setupContainer()
+        setupWater(float(row[8]))
+        setupLego(float(row[9]), float(row[10]), float(row[11]))
+        setupLight(float(row[5]), float(row[6]), float(row[7]))
+        setupCamera()
+        render(f"{row[0]}")
 #    for obj in bpy.data:
 #        print(obj)
         
 
-#setupGround()
-setupContainer()
-setupWater()
-setupLego()
-#setupLight()
-#setupCamera()
 
-renderLoop()
-
-#render("Water")
+file = open('C:\\Users\\Matias\\_Thesis\\pictures\\Metadata\\ImageData.csv')
+renderLoop(file)
+file.close()
+#
 
 #bpy.data.objects["WaterTop"].hide_render = True
 
