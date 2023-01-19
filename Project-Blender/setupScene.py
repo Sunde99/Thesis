@@ -3,6 +3,9 @@ import sys
 import os
 import json
 import csv
+import ast
+import random
+random.seed(42)
 
 # Set up imports
 dir = os.path.dirname(bpy.data.filepath)
@@ -17,8 +20,12 @@ import CleanScene
 CleanScene.clean_scene()
 bpy.context.scene.render.engine = 'CYCLES'
 bpy.data.scenes["Scene"].cycles.use_denoising
-bpy.context.scene.cycles.device = 'CPU'
-bpy.context.scene.render.resolution_percentage = 80
+bpy.context.scene.cycles.device = 'GPU'
+bpy.context.scene.render.resolution_x = 64
+bpy.context.scene.render.resolution_y = 64
+bpy.context.scene.render.resolution_percentage = 100
+bpy.context.scene.cycles.max_bounces = 4
+
 
 # Convert hex to rgb
 def srgb_to_linearrgb(c):
@@ -33,7 +40,7 @@ def hex_to_rgb(h,alpha=1):
     return tuple([srgb_to_linearrgb(c/0xff) for c in (r,g,b)] + [alpha])
 
 # -------------------- Set up ground -------------------- 
-def setupGround(texture, flipColors, primaryColor, secondaryColor):
+def setupGround(flipColors, texture, primaryColor, secondaryColor):
     
     color1 = secondaryColor if flipColors else primaryColor
     color2 = primaryColor if flipColors else secondaryColor
@@ -59,6 +66,15 @@ def setupGround(texture, flipColors, primaryColor, secondaryColor):
         
         checker_node.inputs[1].default_value = hex_to_rgb(int(color1))
         checker_node.inputs[2].default_value = hex_to_rgb(int(color2))
+
+    if (texture == 'Bricks'):
+        brick_node = ground_material.node_tree.nodes.new('ShaderNodeTexBrick')
+
+        ground_material.node_tree.links.new(brick_node.outputs[0], P_BSDF.inputs[0])
+        brick_node.inputs[4].default_value = 15
+        
+        brick_node.inputs[1].default_value = hex_to_rgb(int(color1))
+        brick_node.inputs[2].default_value = hex_to_rgb(int(color2))
 
 
     bpy.context.object.active_material = ground_material
@@ -138,13 +154,7 @@ def setupWater(height):
 
 def setupLego(legoX, legoY, legoRot):
     
-     # Load from file
-    bpy.ops.import_mesh.stl(filepath=f"{dir}\\files\\LEGO-2X4-L_simple.stl")
-
-    lego_material = bpy.data.materials.new("Lego_Material")
-    lego_material.use_nodes = True
-    bpy.data.materials["Lego_Material"].node_tree.nodes["Principled BSDF"].inputs[0].default_value = (1, 0, 0, 1)
-    bpy.context.object.active_material = lego_material
+    bpy.context.view_layer.objects.active = bpy.data.objects["legoParent"]
     
     bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME')
 
@@ -156,18 +166,78 @@ def setupLego(legoX, legoY, legoRot):
     bpy.context.object.location[1] = legoY
     bpy.context.object.location[2] = 0.541523
 
-    bpy.context.object.scale[0] = 0.018132
-    bpy.context.object.scale[1] = 0.018132
-    bpy.context.object.scale[2] = 0.018132
+    bpy.context.object.scale[0] = 0.012
+    bpy.context.object.scale[1] = 0.012
+    bpy.context.object.scale[2] = 0.012
+    # It used to be 0.018132
 
-    
 
 
      # Build bricks (Maybe start with one big?)
      # Place on random pos
      # Random rotation
      # Random material
-     
+
+def setupLegoMaterial(legoName):
+    lego_material = bpy.data.materials.new("Lego_Material")
+    lego_material.use_nodes = True
+    objects = bpy.data.objects
+    lego = objects[legoName]
+    lego.active_material = lego_material
+    
+    random_red = random.randint(0, 10) / 10
+    random_gre = random.randint(0, 10) / 10
+    random_blu = random.randint(0, 10) / 10
+    
+    lego.active_material.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (random_red, random_gre, random_blu, 1)
+
+
+def tempName(x, y, z):
+    dx = 16
+    dy = 16
+    dz = 9.6
+    
+    parent = None
+    objects = bpy.data.objects
+    legoName = ""
+    print("HERE---------------->", bpy.context.scene.objects.get("legoParent"))
+    if not bpy.context.scene.objects.get("legoParent"):
+        legoName = "legoParent"
+        bpy.data.objects["LEGO-2X2-L_simple"].name = legoName
+        parent = objects["legoParent"]
+        #parent.name = "_ParentLego"
+        parent.location[0] = x*dx
+        parent.location[1] = y*dy
+        parent.location[2] = (2-z)*dz
+    else:
+        parent = objects['legoParent']
+        legoName = f'lego_{x}_{y}_{z}'
+        bpy.data.objects["LEGO-2X2-L_simple"].name = legoName
+        child = objects[f'lego_{x}_{y}_{z}']
+        child.location[0] = x*dx
+        child.location[1] = y*dy
+        child.location[2] = (2-z)*dz
+        child.parent = parent
+        child.matrix_parent_inverse = parent.matrix_world.inverted()
+    setupLegoMaterial(legoName)
+
+def setupLegoShape(legoMatrix):
+    
+
+    
+    
+    
+    # Loops over all indexes from bottom up
+    print(legoMatrix)
+    for z in range(2, -1, -1):
+        for x in range(3):
+            for y in range(3):
+                
+                if legoMatrix[x][z][y] == 1:
+                    bpy.ops.import_mesh.stl(filepath=f"{dir}\\files\\LEGO-2X2-L_simple.stl")
+                    tempName(x, y, z)
+
+    
 
 # -------------------- Set up light (randomize?) -------------------- 
 def setupLight(lightX, lightY, lightZ):
@@ -186,8 +256,7 @@ def setupCamera():
 def render(name="name"):
     
     bpy.context.scene.render.filepath = f'{dir}\\pictures\\Autogenerated\\{name}'
-    bpy.context.scene.render.resolution_x = 512 #perhaps set resolution in code
-    bpy.context.scene.render.resolution_y = 512
+
     bpy.ops.render.render(write_still = True)
     bpy.ops.render.render()
     
@@ -205,16 +274,20 @@ def renderLoop(file):
     
     metadata = csv.reader(file)
     header = next(metadata)
-
+    i = 0
     for row in metadata:
-        CleanScene.clean_scene()
-        setupGround(row[1], int(row[2]), row[3], row[4])
+        CleanScene.clean_scene()     
+        setupGround(int(row[1]), row[2], row[3], row[4])
         setupContainer()
         setupWater(float(row[8]))
+        
+        setupLegoShape(ast.literal_eval(row[12]))
         setupLego(float(row[9]), float(row[10]), float(row[11]))
         setupLight(float(row[5]), float(row[6]), float(row[7]))
         setupCamera()
         render(f"{row[0]}")
+        
+
 #    for obj in bpy.data:
 #        print(obj)
         
