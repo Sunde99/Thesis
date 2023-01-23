@@ -5,7 +5,7 @@ import itertools
 import bpy
 import random
 import math
-
+import buildLego
 random.seed(42)
 
 dir = os.path.dirname(bpy.data.filepath)
@@ -13,7 +13,6 @@ if not dir in sys.path:
     sys.path.append(dir )
 print("dir: " + str(dir))
 
-import buildLego
 
 def setupMetadata():
     header = ['ID', 'flipColors', 'GroundTexture', 'GroundPrimaryColor', 'GroundSecondaryColor', 'LightX', 'LightY', 'LightZ', 'WaterHeight', 'LegoX', 'LegoY', 'legoRot', 'lego_shape']
@@ -35,8 +34,7 @@ def setupMetadata():
         writer.writerow(header)
         for i in range(6000):
             lego_shape = buildLego.create_connected_matrix()
-            WaterHeight = 0.38 if random.randint(1, 3) == 3 else 1.5
-            row = [*combinations[i%54], random.randint(-6, 6), random.randint(-6, 6), lightZ, WaterHeight, random.uniform(-0.8, 1), random.uniform(-0.8, 1), random.uniform(0, 2) * math.pi, lego_shape]
+            row = [*combinations[i%54], random.randint(-6, 6), random.randint(-6, 6), lightZ, random.uniform(0.38, 1.5), random.uniform(-0.8, 1), random.uniform(-0.8, 1), random.uniform(0, 2) * math.pi, lego_shape]
             
             id = f'image_{i}'
             imageData = (id, *row)

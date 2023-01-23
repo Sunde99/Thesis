@@ -2,21 +2,23 @@ import bpy
 import sys
 import os
 import numpy as np
-
-# Set up imports
-dir = os.path.dirname(bpy.data.filepath)
-if not dir in sys.path:
-    sys.path.append(dir )
-print("dir: " + str(dir))
-
 import CleanScene 
 
-# Delete EVERYTHING!
+if __name__ == "__main__":
+        
+    # Set up imports
+    dir = os.path.dirname(bpy.data.filepath)
+    if not dir in sys.path:
+        sys.path.append(dir )
+    print("dir: " + str(dir))
 
-CleanScene.clean_scene()
+    # Delete EVERYTHING!
 
-# Create an empty 3x3x3 matrix
-import numpy as np
+    CleanScene.clean_scene()
+
+
+
+
 
 
 def create_connected_matrix():

@@ -5,26 +5,11 @@ import json
 import csv
 import ast
 import random
+import time
+import CleanScene 
 random.seed(42)
 
-# Set up imports
-dir = os.path.dirname(bpy.data.filepath)
-if not dir in sys.path:
-    sys.path.append(dir )
-print("dir: " + str(dir))
 
-import CleanScene 
-
-# Delete EVERYTHING!
-
-CleanScene.clean_scene()
-bpy.context.scene.render.engine = 'CYCLES'
-bpy.data.scenes["Scene"].cycles.use_denoising
-bpy.context.scene.cycles.device = 'GPU'
-bpy.context.scene.render.resolution_x = 64
-bpy.context.scene.render.resolution_y = 64
-bpy.context.scene.render.resolution_percentage = 100
-bpy.context.scene.cycles.max_bounces = 4
 
 
 # Convert hex to rgb
@@ -154,9 +139,10 @@ def setupWater(height):
 
 def setupLego(legoX, legoY, legoRot):
     
-    bpy.context.view_layer.objects.active = bpy.data.objects["legoParent"]
-    
-    bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME')
+     # Load from file
+    lego = bpy.data.objects["LEGO-2X2-L_simple"]
+    lego.select_set(state=True)
+    bpy.context.view_layer.objects.active = lego
 
     bpy.context.object.rotation_euler[0] = 3.1416
     bpy.context.object.rotation_euler[1] = -3.1416 
@@ -166,10 +152,9 @@ def setupLego(legoX, legoY, legoRot):
     bpy.context.object.location[1] = legoY
     bpy.context.object.location[2] = 0.541523
 
-    bpy.context.object.scale[0] = 0.012
-    bpy.context.object.scale[1] = 0.012
-    bpy.context.object.scale[2] = 0.012
-    # It used to be 0.018132
+    bpy.context.object.scale[0] = 0.018132
+    bpy.context.object.scale[1] = 0.018132
+    bpy.context.object.scale[2] = 0.018132
 
 
 
@@ -178,11 +163,10 @@ def setupLego(legoX, legoY, legoRot):
      # Random rotation
      # Random material
 
-def setupLegoMaterial(legoName):
+def setupLegoMaterial(lego):
     lego_material = bpy.data.materials.new("Lego_Material")
     lego_material.use_nodes = True
     objects = bpy.data.objects
-    lego = objects[legoName]
     lego.active_material = lego_material
     
     random_red = random.randint(0, 10) / 10
@@ -191,52 +175,43 @@ def setupLegoMaterial(legoName):
     
     lego.active_material.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (random_red, random_gre, random_blu, 1)
 
+def buildLego(lego, x, y, z, isParent):
 
-def tempName(x, y, z):
+    objects = bpy.data.objects
     dx = 16
     dy = 16
     dz = 9.6
     
-    parent = None
-    objects = bpy.data.objects
-    legoName = ""
-    print("HERE---------------->", bpy.context.scene.objects.get("legoParent"))
-    if not bpy.context.scene.objects.get("legoParent"):
-        legoName = "legoParent"
-        bpy.data.objects["LEGO-2X2-L_simple"].name = legoName
-        parent = objects["legoParent"]
-        #parent.name = "_ParentLego"
-        parent.location[0] = x*dx
-        parent.location[1] = y*dy
-        parent.location[2] = (2-z)*dz
-    else:
-        parent = objects['legoParent']
-        legoName = f'lego_{x}_{y}_{z}'
-        bpy.data.objects["LEGO-2X2-L_simple"].name = legoName
-        child = objects[f'lego_{x}_{y}_{z}']
-        child.location[0] = x*dx
-        child.location[1] = y*dy
-        child.location[2] = (2-z)*dz
-        child.parent = parent
-        child.matrix_parent_inverse = parent.matrix_world.inverted()
-    setupLegoMaterial(legoName)
+    lego.location[0] = x*dx
+    lego.location[1] = y*dy
+    lego.location[2] = (2-z)*dz
+    
+    if not isParent:
+        parent = bpy.context.scene.objects["LEGO-2X2-L_simple"]
+        lego.parent = parent
+        lego.matrix_parent_inverse = parent.matrix_world.inverted()
+        
+    setupLegoMaterial(lego)
+
 
 def setupLegoShape(legoMatrix):
-    
-
     
     
     
     # Loops over all indexes from bottom up
     print(legoMatrix)
+    isParent = True
+    
     for z in range(2, -1, -1):
         for x in range(3):
             for y in range(3):
-                
                 if legoMatrix[x][z][y] == 1:
                     bpy.ops.import_mesh.stl(filepath=f"{dir}\\files\\LEGO-2X2-L_simple.stl")
-                    tempName(x, y, z)
+                    lego = bpy.context.active_object
+                    parent = buildLego(lego, x, y, z, isParent)  
+                    isParent = False                  
 
+#    return parent
     
 
 # -------------------- Set up light (randomize?) -------------------- 
@@ -271,11 +246,10 @@ def createJson():
     
     
 def renderLoop(file):
-    
+    start_time = time.time()
     metadata = csv.reader(file)
     header = next(metadata)
-    i = 0
-    for row in metadata:
+    for i, row in enumerate(metadata):
         CleanScene.clean_scene()     
         setupGround(int(row[1]), row[2], row[3], row[4])
         setupContainer()
@@ -287,20 +261,50 @@ def renderLoop(file):
         setupCamera()
         render(f"{row[0]}")
         
+        amountOfRows = 6000
+        if i != 0 and i % 20 == 0:
+            elapsed_time = time.time() - start_time
+            remaining_time = (elapsed_time / i) * (amountOfRows - i)
+            completion_time = time.ctime(time.time() + remaining_time)
+            print("The code will finish at approximatly", completion_time)
+        
+
+
 
 #    for obj in bpy.data:
 #        print(obj)
         
 
+if __name__ == "__main__":
+    bpy.app.debug_value = 3
+    # Set up imports
+    dir = os.path.dirname(bpy.data.filepath)
+    if not dir in sys.path:
+        sys.path.append(dir )
+    print("dir: " + str(dir))
 
-file = open(f'{dir}\\pictures\\Metadata\\ImageData.csv')
-renderLoop(file)
-file.close()
-#
+    
 
-#bpy.data.objects["WaterTop"].hide_render = True
+    # Delete EVERYTHING!
 
-#render("NoWater")
+    CleanScene.clean_scene()
+    bpy.context.scene.render.engine = 'CYCLES'
+    bpy.data.scenes["Scene"].cycles.use_denoising
+    bpy.context.scene.cycles.device = 'GPU'
+    bpy.context.scene.render.resolution_x = 64
+    bpy.context.scene.render.resolution_y = 64
+    bpy.context.scene.render.resolution_percentage = 100
+    bpy.context.scene.cycles.max_bounces = 4
 
-# TODO REMOVE This is only while testing
-bpy.context.scene.render.engine = 'BLENDER_EEVEE'
+
+    file = open(f'{dir}\\pictures\\Metadata\\ImageData.csv')
+    renderLoop(file)
+    file.close()
+    #
+
+    #bpy.data.objects["WaterTop"].hide_render = True
+
+    #render("NoWater")
+
+    # TODO REMOVE This is only while testing
+    bpy.context.scene.render.engine = 'BLENDER_EEVEE'
