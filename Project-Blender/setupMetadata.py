@@ -5,14 +5,14 @@ import itertools
 import bpy
 import random
 import math
-import buildLego
+
 random.seed(42)
 
 dir = os.path.dirname(bpy.data.filepath)
 if not dir in sys.path:
     sys.path.append(dir )
 print("dir: " + str(dir))
-
+import buildLego
 
 def setupMetadata():
     header = ['ID', 'flipColors', 'GroundTexture', 'GroundPrimaryColor', 'GroundSecondaryColor', 'LightX', 'LightY', 'LightZ', 'WaterHeight', 'LegoX', 'LegoY', 'legoRot', 'lego_shape']
@@ -29,12 +29,13 @@ def setupMetadata():
 #    LegoRot = [random.uniform(0, 2) * math.pi for _ in range(3)
     temp = [flipColors, groundTextures, groundPrimaryColors, groundSecondaryColors]
     combinations = list(itertools.product(*temp))
-    with open(f'{dir}\\pictures\\Metadata\\ImageData.csv', 'w', encoding='UTF8', newline='') as f:
+    with open(f'{dir}\\pictures\\MetadataTemp\\ImageData.csv', 'w', encoding='UTF8', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(header)
-        for i in range(6000):
+        for i in range(10):
             lego_shape = buildLego.create_connected_matrix()
-            row = [*combinations[i%54], random.randint(-6, 6), random.randint(-6, 6), lightZ, random.uniform(0.38, 1.5), random.uniform(-0.8, 1), random.uniform(-0.8, 1), random.uniform(0, 2) * math.pi, lego_shape]
+            water_height = random.uniform(0.38, 1.5) # change to 2.5 max
+            row = [*combinations[i%54], random.randint(-6, 6), random.randint(-6, 6), lightZ, water_height, random.uniform(-0.8, 1), random.uniform(-0.8, 1), random.uniform(0, 2) * math.pi, lego_shape]
             
             id = f'image_{i}'
             imageData = (id, *row)
