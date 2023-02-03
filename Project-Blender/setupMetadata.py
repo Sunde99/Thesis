@@ -34,8 +34,8 @@ def setupMetadata():
         writer.writerow(header)
         for i in range(10):
             lego_shape = buildLego.create_connected_matrix()
-            water_height = random.uniform(0.38, 1.5) # change to 2.5 max
-            row = [*combinations[i%54], random.randint(-6, 6), random.randint(-6, 6), lightZ, water_height, random.uniform(-0.8, 1), random.uniform(-0.8, 1), random.uniform(0, 2) * math.pi, lego_shape]
+            water_height = random.uniform(0.1, 1.8) # change to 2.5 max
+            row = [*combinations[i%54], random.randint(-6, 6), random.randint(-6, 6), lightZ, water_height, random.uniform(-0.83, 0.83), random.uniform(-0.83, 0.83), random.uniform(0, 2) * math.pi, lego_shape]
             
             id = f'image_{i}'
             imageData = (id, *row)

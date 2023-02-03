@@ -1,4 +1,5 @@
 import bpy
+from mathutils import Matrix
 import sys
 import os
 import json
@@ -34,7 +35,7 @@ def setupGround(flipColors, texture, primaryColor, secondaryColor):
     bpy.context.active_object.name = 'Ground'
     bpy.context.object.location[0] = 0
     bpy.context.object.location[1] = 0
-    bpy.context.object.location[2] = 0
+    bpy.context.object.location[2] = -0.01
 
     ground_material = bpy.data.materials.new('Ground_Material')
     ground_material.use_nodes = True
@@ -70,7 +71,7 @@ def setupGround(flipColors, texture, primaryColor, secondaryColor):
 # -------------------- Set up box (Fix dimentions) -------------------- 
 def setupContainer():
     
-    bpy.ops.mesh.primitive_cube_add(size=3, location=(0,0,1.5))
+    bpy.ops.mesh.primitive_cube_add(size=3)
     bpy.context.active_object.name = 'Container'
 
     container_material = bpy.data.materials.new("Container_Material")
@@ -81,6 +82,15 @@ def setupContainer():
     bpy.context.object.scale[2] = 0.75
 
     container = bpy.context.active_object
+    
+    data = container.data
+    min_z = min([v.co.z for v in data.vertices])
+    container.location.z -= min_z
+    data.transform(Matrix.Translation((0, 0, -min_z)))
+    data.update()
+    
+    container.location = (0,0,0)
+
 
     bpy.ops.object.mode_set(mode = 'EDIT') 
     bpy.ops.mesh.select_mode(type='FACE')
@@ -140,23 +150,25 @@ def setupWater(height):
 def setupLego(legoX, legoY, legoRot):
     
      # Load from file
-    lego = bpy.data.objects["LEGO-2X2-L_simple"]
+    lego = bpy.data.objects["Empty"]
     lego.select_set(state=True)
     bpy.context.view_layer.objects.active = lego
+    
+    
+    bpy.context.object.location[0] = legoX
+    bpy.context.object.location[1] = legoY
+    bpy.context.object.location[2] = 0.15
 
     bpy.context.object.rotation_euler[0] = 3.1416
     bpy.context.object.rotation_euler[1] = -3.1416 
     bpy.context.object.rotation_euler[2] = legoRot
 
-    bpy.context.object.location[0] = legoX
-    bpy.context.object.location[1] = legoY
-    bpy.context.object.location[2] = 0.541523
-
-    bpy.context.object.scale[0] = 0.018132
-    bpy.context.object.scale[1] = 0.018132
-    bpy.context.object.scale[2] = 0.018132
+    
 
 
+    bpy.context.object.scale[0] *= 0.01
+    bpy.context.object.scale[1] *= 0.01
+    bpy.context.object.scale[2] *= 0.01
 
      # Build bricks (Maybe start with one big?)
      # Place on random pos
@@ -176,7 +188,7 @@ def setupLegoMaterial(lego):
     lego.active_material.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (random_red, random_gre, random_blu, 1)
 
 def buildLego(lego, x, y, z, isParent):
-
+    
     objects = bpy.data.objects
     dx = 16
     dy = 16
@@ -190,7 +202,10 @@ def buildLego(lego, x, y, z, isParent):
         parent = bpy.context.scene.objects["LEGO-2X2-L_simple"]
         lego.parent = parent
         lego.matrix_parent_inverse = parent.matrix_world.inverted()
-        
+    
+    
+    
+    #bpy.ops.object.origin_set(type='GEOMETRY_ORIGIN', center='BOUNDS')
     setupLegoMaterial(lego)
 
 
@@ -203,12 +218,19 @@ def setupLegoShape(legoMatrix):
     isParent = True
     
     for z in range(2, -1, -1):
-        for x in range(3):
-            for y in range(3):
-                if legoMatrix[x][z][y] == 1:
+        for x in range(7):
+            for y in range(5):
+                if legoMatrix[x][y][z] == 1:
                     if isParent:
                         bpy.ops.import_mesh.stl(filepath=f"{dir}\\files\\LEGO-2X2-L_simple.stl")
                         legoParent = bpy.context.scene.objects["LEGO-2X2-L_simple"]
+                        bpy.ops.object.transform_apply()
+                        bpy.ops.object.origin_set(type='GEOMETRY_ORIGIN', center='BOUNDS')
+                        buildLego(legoParent, x, y, z, isParent) 
+                        print("---->", x, y, z)
+                        
+                        
+                        
                         isParent = False
                     else:
                         bpy.ops.object.select_all(action='DESELECT')
@@ -219,9 +241,24 @@ def setupLegoShape(legoMatrix):
                         buildLego(lego, x, y, z, isParent) 
                          
     setupLegoMaterial(legoParent)
-                    
+    
 
 #    return parent
+
+def setupBoundingBox():
+    bpy.ops.object.select_all(action='DESELECT')
+    bpy.ops.object.empty_add(type="CUBE")
+    boundingBox = bpy.data.objects["Empty"]
+    boundingBox.select_set(state=True)
+    bpy.context.view_layer.objects.active = boundingBox
+    bpy.context.object.location = (48, 32, 9.6)
+    bpy.context.object.scale = (56, 40, 15)
+    
+    bpy.ops.object.select_all(action='DESELECT')
+    legoParent = bpy.context.scene.objects["LEGO-2X2-L_simple"]
+    legoParent.parent = boundingBox
+    legoParent.matrix_parent_inverse = boundingBox.matrix_world.inverted()
+
     
 
 # -------------------- Set up light (randomize?) -------------------- 
@@ -259,16 +296,28 @@ def renderLoop(file):
     start_time = time.time()
     metadata = csv.reader(file)
     header = next(metadata)
+    start = 0
+    stop = 1000
     for i, row in enumerate(metadata):
+        if i < start:
+            continue
+        if i == stop:
+            break
+        
         CleanScene.clean_scene()     
         setupGround(int(row[1]), row[2], row[3], row[4])
         setupContainer()
         setupWater(float(row[8]))
 
         setupLegoShape(ast.literal_eval(row[12]))
+        setupBoundingBox()
         setupLego(float(row[9]), float(row[10]), float(row[11]))
+        #setupBoundingBox()
+        print(ast.literal_eval(row[12]))
+        
         setupLight(float(row[5]), float(row[6]), float(row[7]))
         setupCamera()
+        
         render(f"{row[0]}")
         
         amountOfRows = 6000
@@ -277,7 +326,7 @@ def renderLoop(file):
             remaining_time = (elapsed_time / i) * (amountOfRows - i)
             completion_time = time.ctime(time.time() + remaining_time)
             print("The code will finish at approximatly", completion_time)
-
+        
 
 #    for obj in bpy.data:
 #        print(obj)
@@ -299,8 +348,8 @@ if __name__ == "__main__":
     bpy.context.scene.render.engine = 'CYCLES'
     bpy.data.scenes["Scene"].cycles.use_denoising
     bpy.context.scene.cycles.device = 'GPU'
-    bpy.context.scene.render.resolution_x = 64
-    bpy.context.scene.render.resolution_y = 64
+    bpy.context.scene.render.resolution_x = 512
+    bpy.context.scene.render.resolution_y = 512
     bpy.context.scene.render.resolution_percentage = 100
     bpy.context.scene.cycles.max_bounces = 4
 

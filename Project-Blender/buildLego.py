@@ -3,29 +3,25 @@ import sys
 import os
 import numpy as np
 
-
 if __name__ == "__main__":
-    import CleanScene 
     # Set up imports
     dir = os.path.dirname(bpy.data.filepath)
     if not dir in sys.path:
         sys.path.append(dir )
     print("dir: " + str(dir))
 
+    import CleanScene 
+
     # Delete EVERYTHING!
 
     CleanScene.clean_scene()
 
 
-
-
-
-
 def create_connected_matrix():
+    # Create an empty 3x3x3 matrix
     x_size = 7
     y_size = 5
     z_size = 3
-    # Create an empty 3x3x3 matrix
     matrix = np.random.randint(2, size=(x_size, y_size, z_size))
     matrix_copy = np.copy(matrix)
 
@@ -34,7 +30,8 @@ def create_connected_matrix():
     indices_of_1s = []
     while True:
         # Identify the isolated 1s
-        indices_of_1s = np.argwhere(matrix == 1)
+        indices_of_1s = np.argwhere(matrix)
+
         isolated_indices = []
         for x, y, z in indices_of_1s:
             is_isolated = True
@@ -49,8 +46,9 @@ def create_connected_matrix():
         for x, y, z in isolated_indices:
             matrix[x, y, z] = 0
 
+
     # check if the object is connected
-    indices = np.argwhere(matrix == 1)
+    indices = np.argwhere(matrix)
     if indices.size == 0:
         return create_connected_matrix()
     start = indices[0]
@@ -63,7 +61,7 @@ def create_connected_matrix():
                 DFS(x+dx, y+dy, z+dz)
 
     DFS(*start)
-    
+
     def checkLargestAxis():
         smallest_x_index = np.min(indices[:, 0])
         largest_x_index = np.max(indices[:, 0])
@@ -77,6 +75,9 @@ def create_connected_matrix():
         return x_diff > y_diff
 
     if (visited == matrix).all() and checkLargestAxis():
-        if np.any(matrix[:, 2, :] == 1):
-            return matrix.tolist()
-    return create_connected_matrix()
+
+        return matrix.tolist()
+        #return np.any(matrix[:, 2, :] == 1)
+    else:
+
+        return create_connected_matrix()
