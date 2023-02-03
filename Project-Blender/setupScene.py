@@ -1,4 +1,5 @@
 import bpy
+import mathutils
 from mathutils import Matrix
 import sys
 import os
@@ -136,7 +137,7 @@ def setupWater(height):
     bpy.ops.object.mode_set(mode = 'EDIT') 
     bpy.ops.mesh.select_mode(type='FACE')
     bpy.ops.mesh.bevel(
-        offset          = 0.5, 
+        offset          = 0.34, 
         offset_pct      = 0, 
         segments        = 25, 
         affect          = 'VERTICES', 
@@ -270,7 +271,25 @@ def setupLight(lightX, lightY, lightZ):
 
 # -------------------- Set up camera (randomize?) -------------------- 
 def setupCamera():
-    bpy.ops.object.camera_add(location=(0.33,3,6.69), rotation=(-2.47, 3.2, -0.04))
+    camera_x = random.uniform(-0.6, 0.6)
+    camera_y = random.uniform(1.6, 2.6)
+    camera_z = random.uniform(6, 7.5)
+    
+    t_x = random.uniform(-0.2, 0.2)
+    t_y = random.uniform(-1.2, 0)
+    t_z = random.uniform(-0.2, 0.2)
+    target_location = (t_x, t_y, t_z)
+    
+    print(t_x, t_y, t_z)
+    
+    bpy.ops.object.camera_add()
+    camera = bpy.context.scene.objects["Camera"]
+    camera.location = (camera_x, camera_y, camera_z)
+    
+    direction = mathutils.Vector(camera.location) - mathutils.Vector(target_location)
+    camera.rotation_mode = 'XYZ'
+    camera.rotation_euler = direction.to_track_quat('Z', 'Y').to_euler()
+    
     bpy.context.active_object.name = 'Camera'
     bpy.context.scene.camera = bpy.context.object
 
@@ -317,8 +336,11 @@ def renderLoop(file):
         
         setupLight(float(row[5]), float(row[6]), float(row[7]))
         setupCamera()
-        
+        break
         render(f"{row[0]}")
+        
+        if i == 5:
+            break
         
         amountOfRows = 6000
         if i != 0 and i % 20 == 0:
