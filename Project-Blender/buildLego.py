@@ -2,6 +2,7 @@ import bpy
 import sys
 import os
 import numpy as np
+import random
 
 if __name__ == "__main__":
     # Set up imports
@@ -19,11 +20,18 @@ if __name__ == "__main__":
 
 def create_connected_matrix():
     # Create an empty 3x3x3 matrix
-    x_size = 7
-    y_size = 5
-    z_size = 3
+    x_max_size = 7
+    x_size = random.randint(2, x_max_size)
+
+    y_max_size = 5
+    y_size = random.randint(1, min(y_max_size, x_size-1))
+
+    z_max_size = 3
+    z_size = random.randint(1, z_max_size)
+    print(x_size, y_size, z_size)
     matrix = np.random.randint(2, size=(x_size, y_size, z_size))
     matrix_copy = np.copy(matrix)
+    #matrix = np.pad(matrix, ((0, x_max_size-x_size), (0, y_max_size-y_size), (z_max_size-z_size, 0)),  mode='constant', constant_values=0)
 
     # Define the neighbors of a given cell
     neighbors = [(-1, 0, 0), (1, 0, 0), (0, -1, 0), (0, 1, 0), (0, 0, -1), (0, 0, 1)]
@@ -74,9 +82,17 @@ def create_connected_matrix():
 
         return x_diff > y_diff
 
-    if (visited == matrix).all() and checkLargestAxis():
+    def fillsGrid(matrix):
+        x_planes = [padded_matrix[0,:,:], padded_matrix[x_size-1,:,:]]
+        y_planes = [padded_matrix[:,0,:], padded_matrix[:,y_size-1,:]]
+        z_planes = [padded_matrix[:,:,0], padded_matrix[:,:,z_size-1]]
+        return all(np.any(plane == 1) for plane in x_planes + y_planes + z_planes)
 
-        return matrix.tolist()
+
+    if (visited == matrix).all() and checkLargestAxis() and fillsGrid(matrix):
+        #print(matrix_copy.tolist())
+        matrix = np.pad(matrix, ((0, x_max_size-x_size), (0, y_max_size-y_size), (z_max_size-z_size, 0)),  mode='constant', constant_values=0)
+        return (matrix.tolist(), x_size, y_size, z_size)
         #return np.any(matrix[:, 2, :] == 1)
     else:
 

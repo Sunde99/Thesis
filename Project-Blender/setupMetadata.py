@@ -15,7 +15,7 @@ print("dir: " + str(dir))
 import buildLego
 
 def setupMetadata():
-    header = ['ID', 'flipColors', 'GroundTexture', 'GroundPrimaryColor', 'GroundSecondaryColor', 'LightX', 'LightY', 'LightZ', 'WaterHeight', 'LegoX', 'LegoY', 'legoRot', 'lego_shape']
+    header = ['ID', 'flipColors', 'GroundTexture', 'GroundPrimaryColor', 'GroundSecondaryColor', 'LightX', 'LightY', 'LightZ', 'WaterHeight', 'LegoX', 'LegoY', 'legoRot', 'lego_shape', 'lego_length', 'lego_width', 'lego_height', 'cameraX', 'cameraY', 'cameraZ']
     groundTextures = ['Blank', 'Checkered', 'Bricks']
     flipColors = [1, 0]
     groundPrimaryColors = [0xE3B4DA, 0x7E9E73, 0x5818BE]
@@ -29,13 +29,19 @@ def setupMetadata():
 #    LegoRot = [random.uniform(0, 2) * math.pi for _ in range(3)
     temp = [flipColors, groundTextures, groundPrimaryColors, groundSecondaryColors]
     combinations = list(itertools.product(*temp))
-    with open(f'{dir}\\pictures\\MetadataTemp\\ImageData.csv', 'w', encoding='UTF8', newline='') as f:
+    #print("-----------------------------NEW-------------------------------------")
+    with open(f'{dir}\\pictures\\Metadata\\ImageData.csv', 'w', encoding='UTF8', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(header)
-        for i in range(10):
-            lego_shape = buildLego.create_connected_matrix()
+        for i in range(6000):
+            #print("-------------------------------------------------------------------")
+            lego_shape, lego_length, lego_width, lego_height = buildLego.create_connected_matrix()
+            
             water_height = random.uniform(0.1, 1.8) # change to 2.5 max
-            row = [*combinations[i%54], random.randint(-6, 6), random.randint(-6, 6), lightZ, water_height, random.uniform(-0.83, 0.83), random.uniform(-0.83, 0.83), random.uniform(0, 2) * math.pi, lego_shape]
+            camera_x = random.uniform(-0.6, 0.6)
+            camera_y = random.uniform(1.6, 2.6)
+            camera_z = random.uniform(6, 7.5)
+            row = [*combinations[i%54], random.randint(-6, 6), random.randint(-6, 6), lightZ, water_height, random.uniform(-0.83, 0.83), random.uniform(-0.83, 0.83), random.uniform(0, 2) * math.pi, lego_shape, lego_length, lego_width, lego_height, camera_x, camera_y, camera_z]
             
             id = f'image_{i}'
             imageData = (id, *row)
