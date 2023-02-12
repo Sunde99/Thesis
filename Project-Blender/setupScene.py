@@ -270,7 +270,7 @@ def setupLight(lightX, lightY, lightZ):
     #bpy.data.objects['PointLight'].rotation_euler = (0.027, 0.465, 0.377)
 
 # -------------------- Set up camera (randomize?) -------------------- 
-def setupCamera(camera_x, camera_y, camera_z, randomize = True):
+def setupCamera(camera_x = -1, camera_y = -1, camera_z = -1, randomize = True):
     
     t_x = 0
     t_y = 0
@@ -371,7 +371,7 @@ def renderLoop(file):
 def renderTrue(i, row):
     setupWater(float(row[3]))
     setupLegoShape(ast.literal_eval(row[7]))
-    setupBoundingBox()
+    setupBoundingBox(float(row[8]), float(row[9]), float(row[10]))
     setupLego(float(row[0]), float(row[1]), float(row[2]))
     setupLight(float(row[4]), float(row[5]), float(row[6]))
     setupCamera(randomize = False)
@@ -380,7 +380,7 @@ def renderTrue(i, row):
 def renderPred(i, row, lightX, lightY, lightZ):
     setupWater(float(row[3]))
     setupLegoShape(ast.literal_eval(row[4]))
-    setupBoundingBox()
+    setupBoundingBox(float(row[5]), float(row[6]), float(row[7]))
     setupLego(float(row[0]), float(row[1]), float(row[2]))
     setupLight(float(lightX), float(lightY), float(lightZ))
     setupCamera(randomize = False)
@@ -433,9 +433,9 @@ if __name__ == "__main__":
 
     #testPrediction()
     
-    file = open(f'{dir}\\pictures\\Metadata\\ImageData.csv')
-    renderLoop(file)
-    file.close()
+    #file = open(f'{dir}\\pictures\\Metadata\\ImageData.csv')
+    #renderLoop(file)
+    #file.close()
     #
 
     #bpy.data.objects["WaterTop"].hide_render = True

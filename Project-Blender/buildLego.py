@@ -83,9 +83,9 @@ def create_connected_matrix():
         return x_diff > y_diff
 
     def fillsGrid(matrix):
-        x_planes = [padded_matrix[0,:,:], padded_matrix[x_size-1,:,:]]
-        y_planes = [padded_matrix[:,0,:], padded_matrix[:,y_size-1,:]]
-        z_planes = [padded_matrix[:,:,0], padded_matrix[:,:,z_size-1]]
+        x_planes = [matrix[0,:,:], matrix[x_size-1,:,:]]
+        y_planes = [matrix[:,0,:], matrix[:,y_size-1,:]]
+        z_planes = [matrix[:,:,0], matrix[:,:,z_size-1]]
         return all(np.any(plane == 1) for plane in x_planes + y_planes + z_planes)
 
 
