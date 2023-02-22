@@ -21,7 +21,7 @@ if __name__ == "__main__":
 def create_connected_matrix():
     # Create an empty 3x3x3 matrix
     x_max_size = 7
-    x_size = random.randint(2, x_max_size)
+    x_size = random.randint(5, x_max_size)
 
     y_max_size = 5
     y_size = random.randint(1, min(y_max_size, x_size-1))
