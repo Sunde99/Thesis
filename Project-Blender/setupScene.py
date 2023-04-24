@@ -37,6 +37,8 @@ def setupGround(flipColors = False, texture = "Checkered", primaryColor = 149229
     bpy.context.object.location[0] = 0
     bpy.context.object.location[1] = 0
     bpy.context.object.location[2] = -0.01
+    
+    bpy.context.object.scale = (0.1, 0.1, 1)
 
     ground_material = bpy.data.materials.new('Ground_Material')
     ground_material.use_nodes = True
@@ -79,8 +81,10 @@ def setupContainer():
     container_material.diffuse_color = (0.2227, 0.8, 0.2656, 1)
     #bpy.ops.object.material_slot_add()
     bpy.context.object.active_material = container_material
-
-    bpy.context.object.scale[2] = 0.75
+    
+    bpy.context.object.scale[0] = 0.117
+    bpy.context.object.scale[1] = 0.117
+    bpy.context.object.scale[2] = 0.1
 
     container = bpy.context.active_object
     
@@ -131,8 +135,8 @@ def setupWater(height):
     bpy.data.materials["Water_Material"].node_tree.nodes["Principled BSDF"].inputs[15].default_value = 1
     bpy.context.object.active_material = water_material
 
-    bpy.context.object.scale[0] = 1.5
-    bpy.context.object.scale[1] = 1.5
+    bpy.context.object.scale[0] = 0.175
+    bpy.context.object.scale[1] = 0.175
 
     bpy.ops.object.mode_set(mode = 'EDIT') 
     bpy.ops.mesh.select_mode(type='FACE')
@@ -148,7 +152,7 @@ def setupWater(height):
 
 # -------------------- Set up lego (randomize) -------------------- 
 
-def setupLego(legoX, legoY, legoRot):
+def setupLego(legoX, legoY, legoRot = 1.):
     
      # Load from file
     lego = bpy.data.objects["Empty"]
@@ -158,7 +162,7 @@ def setupLego(legoX, legoY, legoRot):
     
     bpy.context.object.location[0] = legoX
     bpy.context.object.location[1] = legoY
-    bpy.context.object.location[2] = 0.15
+    bpy.context.object.location[2] = 0.015
 
     bpy.context.object.rotation_euler[0] = 3.1416
     bpy.context.object.rotation_euler[1] = -3.1416 
@@ -167,9 +171,9 @@ def setupLego(legoX, legoY, legoRot):
     
 
 
-    bpy.context.object.scale[0] *= 0.01
-    bpy.context.object.scale[1] *= 0.01
-    bpy.context.object.scale[2] *= 0.01
+    bpy.context.object.scale[0] *= 0.001
+    bpy.context.object.scale[1] *= 0.001
+    bpy.context.object.scale[2] *= 0.001
 
      # Build bricks (Maybe start with one big?)
      # Place on random pos
@@ -182,9 +186,13 @@ def setupLegoMaterial(lego):
     objects = bpy.data.objects
     lego.active_material = lego_material
     
-    random_red = random.randint(0, 10) / 10
-    random_gre = random.randint(0, 10) / 10
-    random_blu = random.randint(0, 10) / 10
+    random_red = 0.8#random.randint(0, 10) / 10
+    random_gre = 0.0#random.randint(0, 10) / 10
+    random_blu = 0.2#random.randint(0, 10) / 10
+    
+#    random_red = random.randint(0, 10) / 10
+#    random_gre = random.randint(0, 10) / 10
+#    random_blu = random.randint(0, 10) / 10
     
     lego.active_material.node_tree.nodes["Principled BSDF"].inputs[0].default_value = (random_red, random_gre, random_blu, 1)
 
@@ -252,6 +260,7 @@ def setupBoundingBox(boundX, boundY, boundZ):
     boundingBox = bpy.data.objects["Empty"]
     boundingBox.select_set(state=True)
     bpy.context.view_layer.objects.active = boundingBox
+    
     bpy.context.object.location = (8*(boundX-1), 8*(boundY-1), 4.8*(boundZ-1))
     bpy.context.object.scale = (8*boundX, 8*boundY, 4.8*boundZ)
     
@@ -266,7 +275,10 @@ def setupBoundingBox(boundX, boundY, boundZ):
 def setupLight(lightX, lightY, lightZ):
     bpy.ops.object.light_add(location=(lightX, lightY, lightZ), type='POINT')
     bpy.context.active_object.name = 'PointLight'
-    bpy.data.lights["Point"].energy = 20000
+    bpy.context.object.data.use_contact_shadow = True
+
+    bpy.context.object.data.shadow_soft_size = 0.005
+    bpy.data.lights["Point"].energy = 200
     #bpy.data.objects['PointLight'].rotation_euler = (0.027, 0.465, 0.377)
 
 # -------------------- Set up camera (randomize?) -------------------- 
@@ -278,17 +290,25 @@ def setupCamera(camera_x = -1, camera_y = -1, camera_z = -1, randomize = True):
     
     if randomize:
         
-        t_x = random.uniform(-0.2, 0.2)
-        t_y = random.uniform(-1.2, 0)
-        t_z = random.uniform(-0.2, 0.2)
+        t_x = random.uniform(-0.001, 0.001)
+        t_y = random.uniform(-0.1, -0.05)
+        t_z = random.uniform(-0.001, 0.002)
     else:
-        camera_x =  0.0
-        camera_y = 2.0
-        camera_z = 7.0
+        camera_x = 0
+        camera_y = 0.25
+        camera_z = 0.8
+#        
+#        t_x = 0.
+#        t_y = 0
+#        t_z = 0
+
+        #camera_x =  0.0
+        #camera_y = 2.0
+        #camera_z = 7.0
         
         t_x = 0.0
-        t_y = -0.6
-        t_z = 0
+        t_y = -0.06
+        t_z = 0.02
     
     target_location = (t_x, t_y, t_z)
     
@@ -306,15 +326,20 @@ def setupCamera(camera_x = -1, camera_y = -1, camera_z = -1, randomize = True):
     bpy.context.scene.camera = bpy.context.object
 
 # Set up render (In its own file!)
-def render(name="name", pred = False):
+def render(name="name", pred = False, mural = False, test = False):
     
     if pred:
-        bpy.context.scene.render.filepath = f'{dir}\\pictures\\Predictions\\{name}'
+#        bpy.context.scene.render.filepath = f'{dir}\\pictures\\Predictions\\{name}'
+        bpy.context.scene.render.filepath = f'{dir}\\pictures\\PredictionsShapeCorrections\\{name}'
+    elif mural:
+        bpy.context.scene.render.filepath = f'{dir}\\pictures\\Mural\\{name}'
+    elif test:
+        bpy.context.scene.render.filepath = f'{dir}\\pictures\\AutogeneratedForTesting\\{name}'
     else:
         bpy.context.scene.render.filepath = f'{dir}\\pictures\\Autogenerated\\{name}'
 
     bpy.ops.render.render(write_still = True)
-    bpy.ops.render.render()
+    #bpy.ops.render.render()
     
 def createJson():
     path = f'{dir}\\metadata.json'
@@ -330,58 +355,87 @@ def renderLoop(file):
     start_time = time.time()
     metadata = csv.reader(file)
     header = next(metadata)
-    start = 0
-    stop = 2000
+    start = 5300
+    stop = 6000
     for i, row in enumerate(metadata):
         if i < start:
             continue
-        if i == stop:
+        if i >= stop:
             break
-        
         CleanScene.clean_scene()     
         setupGround(int(row[1]), row[2], row[3], row[4])
+#        setupGround()
         setupContainer()
         setupWater(float(row[8]))
-        
+#        setupWater(0.55)        
         #print(row[12])
         setupLegoShape(ast.literal_eval(row[12]))
         setupBoundingBox(int(row[13]), int(row[14]), int(row[15]))
         setupLego(float(row[9]), float(row[10]), float(row[11]))
-
         #print(ast.literal_eval(row[12]))
         
         setupLight(float(row[5]), float(row[6]), float(row[7]))
+
         setupCamera(float(row[16]), float(row[17]), float(row[18]))
+        print(float(row[16]))
+        #setupCamera(randomize = False)
         #break
         render(f"{row[0]}")
+        
+        #---------
+        #setupCamera(randomize=False)
+        #---------
+
         
         #if i == 5:
         #    break
         
-        amountOfRows = stop-start
-        if i != 0 and i % 20 == 0:
-            elapsed_time = time.time() - start_time
-            remaining_time = (elapsed_time / i) * (amountOfRows - i)
-            completion_time = time.ctime(time.time() + remaining_time)
-            print("The current run will finish at approximatly", completion_time)
+        #amountOfRows = stop-start
+        #if i != 0 and i % 20 == 0:
+        #    elapsed_time = time.time() - start_time
+        #    remaining_time = (elapsed_time / i) * (amountOfRows - i)
+        #    completion_time = time.ctime(time.time() + remaining_time)
+        #    print("The current run will finish at approximatly", completion_time)
+        
+
+def legoMural(file):
+    metadata = csv.reader(file)
+    header = next(metadata)
+    
+    for i, row in enumerate(metadata):
+        if i == 10:
+            break
+        CleanScene.clean_scene() 
+        setupGround(primaryColor = 00000000, secondaryColor = 00000000)
+        setupLegoShape(ast.literal_eval(row[12]))
+        setupBoundingBox(int(row[13]), int(row[14]), int(row[15]))
+        setupLego(0, 0, 0)
+        setupLight(5, 5, 5)
+        setupCamera(randomize=False)
+        render(f"{row[0]}", mural=True)
         
 
 #    for obj in bpy.data:
 #        print(obj)
 def renderTrue(i, row):
     setupWater(float(row[3]))
-    setupLegoShape(ast.literal_eval(row[7]))
-    setupBoundingBox(float(row[8]), float(row[9]), float(row[10]))
+    setupLegoShape(ast.literal_eval(row[13]))
+    setupBoundingBox(float(row[7]), float(row[8]), float(row[9]))
     setupLego(float(row[0]), float(row[1]), float(row[2]))
     setupLight(float(row[4]), float(row[5]), float(row[6]))
     setupCamera(randomize = False)
     render(f"image_{i}_True", pred=True)
 
-def renderPred(i, row, lightX, lightY, lightZ):
+def renderPred(i, row, lightX, lightY, lightZ, shape = None):
     setupWater(float(row[3]))
-    setupLegoShape(ast.literal_eval(row[4]))
-    setupBoundingBox(float(row[5]), float(row[6]), float(row[7]))
+    if shape == None:
+        setupLegoShape(ast.literal_eval(row[10]))
+    else:
+        setupLegoShape(shape)
+    
+    setupBoundingBox(float(row[4]), float(row[5]), float(row[6]))
     setupLego(float(row[0]), float(row[1]), float(row[2]))
+    
     setupLight(float(lightX), float(lightY), float(lightZ))
     setupCamera(randomize = False)
     render(f"image_{i}_Pred", pred=True)
@@ -394,22 +448,34 @@ def testPrediction():
     trueFile = open(f'{dir}\\pictures\\Metadata\\TrueImageData.csv')
     trueMetadata = csv.reader(trueFile)
     header = next(trueMetadata)
+    start = 0
+    stop = 10
     for i, row in enumerate(trueMetadata):
+        predRow = next(predMetadata)
+        if i < start:
+            continue
+        if i >= stop:
+            break
         CleanScene.clean_scene()
         setupGround()  
         setupContainer()
         #setupWater(float(row[3]))
         #
-        renderTrue(i, row)
         
+        renderTrue(i, row)
+#        break
         CleanScene.clean_scene()
         setupGround()  
         setupContainer()
         #setupWater(float(row[3]))
-        renderPred(i, next(predMetadata), row[4], row[5], row[6])
-        
+#        renderPred(i, predRow, row[4], row[5], row[6])
+
+        renderPred(i, predRow, row[4], row[5], row[6], ast.literal_eval(row[13]))
+#        break
     predFile.close()
     trueFile.close()
+
+
 
 if __name__ == "__main__":
     # Set up imports
@@ -426,16 +492,18 @@ if __name__ == "__main__":
     bpy.context.scene.render.engine = 'CYCLES'
     bpy.data.scenes["Scene"].cycles.use_denoising
     bpy.context.scene.cycles.device = 'GPU'
-    bpy.context.scene.render.resolution_x = 64
-    bpy.context.scene.render.resolution_y = 64
+    bpy.context.scene.render.resolution_x = 256
+    bpy.context.scene.render.resolution_y = 256
     bpy.context.scene.render.resolution_percentage = 100
     bpy.context.scene.cycles.max_bounces = 4
 
-    #testPrediction()
+    testPrediction()
     
-    #file = open(f'{dir}\\pictures\\Metadata\\ImageData.csv')
-    #renderLoop(file)
-    #file.close()
+    #file = open(f'{dir}\\pictures\\Metadata\\ImageDataTest.csv')
+#    file = open(f'{dir}\\pictures\\Metadata\\ImageData.csv')
+    #legoMural(file)
+#    renderLoop(file)
+#    file.close()
     #
 
     #bpy.data.objects["WaterTop"].hide_render = True
